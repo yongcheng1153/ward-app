@@ -286,8 +286,8 @@ const app = initializeApp({
 });
 const db = getDatabase(app);
 
-// 密碼類 key 只留本機
-const LOCAL_ONLY = new Set(['ward_password','ward_admin_pass']);
+// 所有 key 都上雲（包含密碼）
+const LOCAL_ONLY = new Set([]);
 
 // 初始：從 Firebase 拉所有資料存回 localStorage
 async function pullAll(){
