@@ -324,6 +324,12 @@ window._fbRemove = (k)=>{
   if(LOCAL_ONLY.has(k)) return;
   remove(ref(db,'ward/'+k)).catch(e=>console.warn('[FB] 刪除失敗',k,e));
 };
+// 即時讀取單一 key（用於登入驗證）
+window._fbGet = (k, cb)=>{
+  get(ref(db,'ward/'+k)).then(snap=>{
+    cb(snap.exists()?snap.val():null);
+  }).catch(()=>cb(null));
+};
 
 // 啟動
 pullAll().then(()=>{
@@ -408,7 +414,7 @@ pullAll().then(()=>{
       <table>
         <thead><tr>
           <th>床號</th><th>病例號</th><th>姓名</th><th>入院日期</th><th>入A1日期</th>
-          <th>性別</th><th>出生年</th><th>看護</th><th>主治醫師</th><th>診斷</th>
+          <th>性別</th><th>出生年</th><th>診斷</th><th>主治醫師</th><th>看護</th><th>來自</th>
           <th>高跌</th><th>DNR</th><th>隔離</th><th>約束</th><th>壓瘡</th><th>出服</th>
           <th>出院日期</th><th>操作</th>
         </tr></thead>
@@ -543,12 +549,20 @@ pullAll().then(()=>{
   <div id="module-admin" style="display:none;padding:20px;">
     <div style="max-width:900px;margin:0 auto;">
       <div style="font-size:16px;font-weight:700;color:#0e7490;margin-bottom:16px;">⚙️ 系統管理</div>
-      <div class="accordion-item">
-        <button class="accordion-header" onclick="toggleAccordion(0)">
-          <span>👩‍⚕️ 看護選項清單</span>
-          <span class="accordion-arrow" id="accArrow0">▸</span>
-        </button>
-        <div class="accordion-body" id="accBody0" style="display:none;">
+
+      <!-- 清單管理 折疊區塊 -->
+      <div style="border:2px solid #bae6fd;border-radius:12px;padding:16px;margin-bottom:14px;background:#f0f9ff;">
+        <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;" onclick="toggleListManager()">
+          <div style="font-size:15px;font-weight:700;color:#0369a1;">📋 清單管理</div>
+          <span id="listManagerArrow" style="color:#0369a1;font-size:18px;">▸</span>
+        </div>
+        <div id="listManagerBody" style="display:none;margin-top:14px;">
+          <div class="accordion-item">
+            <button class="accordion-header" onclick="toggleAccordion(0)">
+              <span>👩‍⚕️ 看護選項清單</span>
+              <span class="accordion-arrow" id="accArrow0">▸</span>
+            </button>
+            <div class="accordion-body" id="accBody0" style="display:none;">
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
         <div>
           <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:6px;">👤 姓名</div>
@@ -571,51 +585,80 @@ pullAll().then(()=>{
           <div class="tag-add-row"><input class="tag-add-input" id="affiliationAddInput" placeholder="新增隸屬" onkeydown="if(event.key==='Enter')addNurseSubTag('affiliation')"><button class="btn btn-primary btn-sm" onclick="addNurseSubTag('affiliation')">新增</button></div>
         </div>
       </div>
-        </div>
-      </div>
-      <div class="accordion-item">
-        <button class="accordion-header" onclick="toggleAccordion(1)">
-          <span>🩺 診斷選項清單（A組）</span>
-          <span class="accordion-arrow" id="accArrow1">▸</span>
-        </button>
-        <div class="accordion-body" id="accBody1" style="display:none;">
-<div class="tag-editor" id="dxTagEditor"></div><div class="tag-add-row"><input class="tag-add-input" id="dxAddInput" placeholder="新增診斷項目" onkeydown="if(event.key==='Enter')addTag('dx')"><button class="btn btn-primary" onclick="addTag('dx')">新增</button></div>
-        </div>
-      </div>
-      <div class="accordion-item">
-        <button class="accordion-header" onclick="toggleAccordion(2)">
-          <span>🔬 管路清單（B組）</span>
-          <span class="accordion-arrow" id="accArrow2">▸</span>
-        </button>
-        <div class="accordion-body" id="accBody2" style="display:none;">
+            </div>
+          </div>
+          <div class="accordion-item">
+            <button class="accordion-header" onclick="toggleAccordion(1)">
+              <span>🩺 診斷選項清單（A組）</span>
+              <span class="accordion-arrow" id="accArrow1">▸</span>
+            </button>
+            <div class="accordion-body" id="accBody1" style="display:none;">
+<div class="tag-editor" id="dxTagEditor"></div>
+<div style="margin-top:10px;">
+  <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">新增診斷項目</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <input class="tag-add-input" id="dxAddInput" placeholder="俗稱（A組填入）" style="flex:1;min-width:120px;" onkeydown="if(event.key==='Enter')addTag('dx')">
+    <span style="color:var(--text-muted);">→</span>
+    <input class="tag-add-input" id="dxFormalAddInput" placeholder="正式名稱（可空白）" style="flex:1;min-width:120px;" onkeydown="if(event.key==='Enter')addTag('dx')">
+    <button class="btn btn-primary" onclick="addTag('dx')">新增</button>
+  </div>
+</div>
+            </div>
+          </div>
+          <div class="accordion-item">
+            <button class="accordion-header" onclick="toggleAccordion(2)">
+              <span>🔬 管路清單（B組）</span>
+              <span class="accordion-arrow" id="accArrow2">▸</span>
+            </button>
+            <div class="accordion-body" id="accBody2" style="display:none;">
 <div class="tag-editor" id="tubeBTagEditor"></div><div class="tag-add-row"><input class="tag-add-input" id="tubeBAddInput" placeholder="新增管路名稱" onkeydown="if(event.key==='Enter')addBTag('tube')"><button class="btn btn-primary" onclick="addBTag('tube')">新增</button></div>
-        </div>
-      </div>
-      <div class="accordion-item">
-        <button class="accordion-header" onclick="toggleAccordion(3)">
-          <span>🏷️ 科別與醫師清單（B組）</span>
-          <span class="accordion-arrow" id="accArrow3">▸</span>
-        </button>
-        <div class="accordion-body" id="accBody3" style="display:none;">
+            </div>
+          </div>
+          <div class="accordion-item">
+            <button class="accordion-header" onclick="toggleAccordion(3)">
+              <span>🏷️ 科別與醫師清單（B組）</span>
+              <span class="accordion-arrow" id="accArrow3">▸</span>
+            </button>
+            <div class="accordion-body" id="accBody3" style="display:none;">
 <div id="deptBTagEditor" style="margin-bottom:10px;"></div>
       <button class="btn btn-primary" onclick="openDeptDoctorModal()">⚙️ 管理科別與醫師</button>
-        </div>
-      </div>
-      <div class="accordion-item">
-        <button class="accordion-header" onclick="toggleAccordion(4)">
-          <span>📋 無法今辦明出原因清單</span>
-          <span class="accordion-arrow" id="accArrow4">▸</span>
-        </button>
-        <div class="accordion-body" id="accBody4" style="display:none;">
+            </div>
+          </div>
+          <div class="accordion-item">
+            <button class="accordion-header" onclick="toggleAccordion(4)">
+              <span>🏥 出服收案項目（A組）</span>
+              <span class="accordion-arrow" id="accArrow4">▸</span>
+            </button>
+            <div class="accordion-body" id="accBody4" style="display:none;">
+<div class="tag-editor" id="dcContentsTagEditor"></div><div class="tag-add-row"><input class="tag-add-input" id="dcContentsAddInput" placeholder="新增收案項目" onkeydown="if(event.key==='Enter')addTag('dcContents')"><button class="btn btn-primary" onclick="addTag('dcContents')">新增</button></div>
+            </div>
+          </div>
+          <div class="accordion-item">
+            <button class="accordion-header" onclick="toggleAccordion(5)">
+              <span>🧫 隔離檢體（A組）</span>
+              <span class="accordion-arrow" id="accArrow5">▸</span>
+            </button>
+            <div class="accordion-body" id="accBody5" style="display:none;">
+<div class="tag-editor" id="isoSpecimenTagEditor"></div><div class="tag-add-row"><input class="tag-add-input" id="isoSpecimenAddInput" placeholder="新增檢體項目" onkeydown="if(event.key==='Enter')addTag('isoSpecimen')"><button class="btn btn-primary" onclick="addTag('isoSpecimen')">新增</button></div>
+            </div>
+          </div>
+          <div class="accordion-item">
+            <button class="accordion-header" onclick="toggleAccordion(7)">
+              <span>📋 無法今辦明出原因清單</span>
+              <span class="accordion-arrow" id="accArrow7">▸</span>
+            </button>
+            <div class="accordion-body" id="accBody7" style="display:none;">
 <div class="tag-editor" id="nodcReasonTagEditor"></div><div class="tag-add-row"><input class="tag-add-input" id="nodcReasonAddInput" placeholder="新增原因項目" onkeydown="if(event.key==='Enter')addTag('nodcReason')"><button class="btn btn-primary" onclick="addTag('nodcReason')">新增</button></div>
-        </div>
-      </div>
+            </div>
+          </div>
+        </div><!-- end listManagerBody -->
+      </div><!-- end listManager -->
       <div class="accordion-item">
-        <button class="accordion-header" onclick="toggleAccordion(5)">
+        <button class="accordion-header" onclick="toggleAccordion(6)">
           <span>🔐 每月通行暗號</span>
-          <span class="accordion-arrow" id="accArrow5">▸</span>
+          <span class="accordion-arrow" id="accArrow6">▸</span>
         </button>
-        <div class="accordion-body" id="accBody5" style="display:none;">
+        <div class="accordion-body" id="accBody6" style="display:none;">
 <div class="info-box">每月由管理者設定，所有使用者輸入相同暗號即可進入。變更時須輸入管理者密碼驗證。</div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
         <input type="text" id="newPassInput" placeholder="輸入新月暗號" style="width:200px;">
@@ -633,11 +676,11 @@ pullAll().then(()=>{
         </div>
       </div>
       <div class="accordion-item">
-        <button class="accordion-header" onclick="toggleAccordion(6)">
+        <button class="accordion-header" onclick="toggleAccordion(8)">
           <span>📅 月份設定</span>
-          <span class="accordion-arrow" id="accArrow6">▸</span>
+          <span class="accordion-arrow" id="accArrow8">▸</span>
         </button>
-        <div class="accordion-body" id="accBody6" style="display:none;">
+        <div class="accordion-body" id="accBody8" style="display:none;">
 <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
         <div style="display:flex;gap:10px;align-items:center;"><input type="month" id="monthInput" style="width:180px;"><button class="btn btn-primary" onclick="saveMonth()">更新月份</button></div>
         <div style="display:flex;gap:10px;align-items:center;">
@@ -649,11 +692,11 @@ pullAll().then(()=>{
         </div>
       </div>
       <div class="accordion-item">
-        <button class="accordion-header" onclick="toggleAccordion(7)">
+        <button class="accordion-header" onclick="toggleAccordion(9)">
           <span>📄 月結匯出</span>
-          <span class="accordion-arrow" id="accArrow7">▸</span>
+          <span class="accordion-arrow" id="accArrow9">▸</span>
         </button>
-        <div class="accordion-body" id="accBody7" style="display:none;">
+        <div class="accordion-body" id="accBody9" style="display:none;">
 <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">匯出本月 A / B 組病人完整清單為 PDF。</p>
       <div style="display:flex;gap:12px;flex-wrap:wrap;">
         <button class="btn btn-success" onclick="exportPDF_A()">📄 匯出 A 組 PDF</button>
@@ -662,11 +705,11 @@ pullAll().then(()=>{
         </div>
       </div>
       <div class="accordion-item">
-        <button class="accordion-header" onclick="toggleAccordion(8)">
+        <button class="accordion-header" onclick="toggleAccordion(10)">
           <span>🗑️ 月結清理</span>
-          <span class="accordion-arrow" id="accArrow8">▸</span>
+          <span class="accordion-arrow" id="accArrow10">▸</span>
         </button>
-        <div class="accordion-body" id="accBody8" style="display:none;">
+        <div class="accordion-body" id="accBody10" style="display:none;">
 <div style="display:flex;gap:12px;flex-wrap:wrap;">
         <div class="danger-zone" style="flex:1;min-width:280px;">
           <p style="font-size:13px;margin-bottom:12px;color:#991b1b;">⚠️ 將刪除所有A組已出院病人資料，<strong>無法還原</strong>。請先匯出 PDF。</p>
@@ -1105,14 +1148,27 @@ function doLogin(){
   if(!inp)return;
   const entered=inp.value.trim();
   if(!entered){document.getElementById('loginError').textContent='請輸入暗號';return;}
-  const stored=ls(KEY_PASS)||'ward2024';
-  if(entered===stored){
-    document.getElementById('login-screen').style.display='none';
-    document.getElementById('app').style.display='block';
-    renderA(); renderAStats();
+
+  function verify(stored){
+    var pass=stored||'ward2024';
+    if(entered===pass){
+      document.getElementById('login-screen').style.display='none';
+      document.getElementById('app').style.display='block';
+      renderA(); renderAStats();
+    } else {
+      document.getElementById('loginError').textContent='暗號錯誤，請重新輸入';
+      inp.value=''; inp.focus();
+    }
+  }
+
+  // 優先從 Firebase 即時取得最新密碼
+  if(window._fbGet){
+    window._fbGet(KEY_PASS, function(val){
+      if(val) localStorage.setItem(KEY_PASS, val);
+      verify(val||ls(KEY_PASS));
+    });
   } else {
-    document.getElementById('loginError').textContent='暗號錯誤，請重新輸入';
-    inp.value=''; inp.focus();
+    verify(ls(KEY_PASS));
   }
 }
 function doLogout(){
@@ -1332,6 +1388,15 @@ function showModule(mod){
   }
 }
 var openAccordionIdx=null;
+function toggleListManager(){
+  var body=document.getElementById('listManagerBody');
+  var arrow=document.getElementById('listManagerArrow');
+  if(!body)return;
+  var open=body.style.display==='block';
+  body.style.display=open?'none':'block';
+  if(arrow)arrow.textContent=open?'▸':'▾';
+  if(!open)renderTagEditors();
+}
 function toggleAccordion(idx){
   var body=document.getElementById('accBody'+idx);
   var arrow=document.getElementById('accArrow'+idx);
@@ -1446,23 +1511,60 @@ function savePassword(){
 const DEFAULT_NODC_REASON=['醫師因素','病人死亡','病情無法掌握','無法11點前接走病人','其他因素'];
 const KEY_NODC_REASON='ward_nodc_reason';
 function getNodcReasonList(){try{const s=ls(KEY_NODC_REASON);return s?JSON.parse(s):DEFAULT_NODC_REASON;}catch(e){return DEFAULT_NODC_REASON;}}
+
+const DEFAULT_DC_CONTENTS=['N','F','T','1st管','14天','CVA','安置','獨居','3.0','輔具申請','居家有管','1st胰島素','下肢骨折','TB'];
+const KEY_DC_CONTENTS='ward_dc_contents';
+function getDcContentsList(){try{const s=ls(KEY_DC_CONTENTS);return s?JSON.parse(s):DEFAULT_DC_CONTENTS;}catch(e){return DEFAULT_DC_CONTENTS;}}
+
+const DEFAULT_ISO_SPECIMEN=['痰','尿','PCN-L','PCN-R','便','wd','疥','pigtail'];
+const KEY_ISO_SPECIMEN='ward_iso_specimen';
+function getIsoSpecimenList(){try{const s=ls(KEY_ISO_SPECIMEN);return s?JSON.parse(s):DEFAULT_ISO_SPECIMEN;}catch(e){return DEFAULT_ISO_SPECIMEN;}}
+
+const KEY_DX_FORMAL='ward_dx_formal';
+function getDxFormalMap(){try{const s=ls(KEY_DX_FORMAL);return s?JSON.parse(s):{};}catch(e){return {};}}
+function saveDxFormalInput(el){
+  var name=el.getAttribute('data-dx-name');
+  if(name!==null)setDxFormal(name,el.value);
+}
+function setDxFormal(name,formal){var m=getDxFormalMap();if(formal.trim())m[name]=formal.trim();else delete m[name];lsSet(KEY_DX_FORMAL,JSON.stringify(m));}
+function getFormalDx(name){var m=getDxFormalMap();return m[name]||name;}
+
 function renderTagEditors(){
-  ['nurse','dx','nodcReason'].forEach(function(type){
-    const list=type==='nurse'?getNurseList():(type==='dx'?getDxList():getNodcReasonList());
+  ['nurse','dx','dcContents','isoSpecimen','nodcReason'].forEach(function(type){
+    const list=type==='nurse'?getNurseList():(type==='dx'?getDxList():(type==='dcContents'?getDcContentsList():(type==='isoSpecimen'?getIsoSpecimenList():getNodcReasonList())));
     const c=document.getElementById(type+'TagEditor');if(!c)return;
-    c.innerHTML=list.map(function(item,i){return '<span class="tag-item">'+item+'<button onclick="removeTag(\''+type+'\','+i+')">×</button></span>';}).join('');
+    if(type==='dx'){
+      const formalMap=getDxFormalMap();
+      c.innerHTML=list.map(function(item,i){
+        var formal=formalMap[item]||'';
+        return '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'
+          +'<span class="tag-item" style="margin:0;">'+esc(item)+'<button onclick="removeTag(\'dx\','+i+')">×</button></span>'
+          +'<span style="color:var(--text-muted);font-size:12px;">→</span>'
+          +'<input data-dx-name="'+esc(item)+'" value="'+esc(formal)+'" placeholder="正式名稱（可空白）" '
+          +'onblur="saveDxFormalInput(this)" '
+          +'style="flex:1;max-width:180px;padding:3px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;outline:none;">'
+          +'</div>';
+      }).join('');
+    } else {
+      c.innerHTML=list.map(function(item,i){return '<span class="tag-item">'+item+'<button onclick="removeTag(\''+type+'\','+i+')">×</button></span>';}).join('');
+    }
   });
 }
 function addTag(type){
   const inp=document.getElementById(type+'AddInput');const val=inp.value.trim();if(!val)return;
-  const key=type==='nurse'?KEY_NURSE_LIST:(type==='dx'?KEY_DX_LIST:KEY_NODC_REASON);
-  const list=type==='nurse'?getNurseList():(type==='dx'?getDxList():getNodcReasonList());
+  const key=type==='nurse'?KEY_NURSE_LIST:(type==='dx'?KEY_DX_LIST:(type==='dcContents'?KEY_DC_CONTENTS:(type==='isoSpecimen'?KEY_ISO_SPECIMEN:KEY_NODC_REASON)));
+  const list=type==='nurse'?getNurseList():(type==='dx'?getDxList():(type==='dcContents'?getDcContentsList():(type==='isoSpecimen'?getIsoSpecimenList():getNodcReasonList())));
   if(list.includes(val)){alert('已存在');return;}
-  list.push(val);lsSet(key,JSON.stringify(list));inp.value='';renderTagEditors();
+  list.push(val);lsSet(key,JSON.stringify(list));
+  if(type==='dx'){
+    const formalInp=document.getElementById('dxFormalAddInput');
+    if(formalInp&&formalInp.value.trim()){setDxFormal(val,formalInp.value.trim());formalInp.value='';}
+  }
+  inp.value='';renderTagEditors();
 }
 function removeTag(type,idx){
-  const key=type==='nurse'?KEY_NURSE_LIST:(type==='dx'?KEY_DX_LIST:KEY_NODC_REASON);
-  const list=type==='nurse'?getNurseList():(type==='dx'?getDxList():getNodcReasonList());
+  const key=type==='nurse'?KEY_NURSE_LIST:(type==='dx'?KEY_DX_LIST:(type==='dcContents'?KEY_DC_CONTENTS:(type==='isoSpecimen'?KEY_ISO_SPECIMEN:KEY_NODC_REASON)));
+  const list=type==='nurse'?getNurseList():(type==='dx'?getDxList():(type==='dcContents'?getDcContentsList():(type==='isoSpecimen'?getIsoSpecimenList():getNodcReasonList())));
   list.splice(idx,1);lsSet(key,JSON.stringify(list));renderTagEditors();
 }
 
@@ -1602,11 +1704,18 @@ function renderA(){
       +editTd(p,'admit_a1',p.admit_a1||'')
       +'<td>'+gTag+'</td>'
       +editTd(p,'birth',p.birth?p.birth+'年':'')
+      +editTd(p,'dx',p.dx)
+      +(function(){
+        var docFull=p.doctor||'';
+        var docName=docFull.includes('-')?docFull.split('-').slice(1).join('-'):docFull;
+        return '<td class="cell-editable" onclick="openDoctorPopupA(event,\''+p.id+'\')">'
+          +(docName||'<span class="cell-placeholder">點擊選擇</span>')+'</td>';
+      })()
       +(function(){
         var nurseVal=p.nurse||'';
         var ne=p.nurseExtra||{};
-        var nurseIncomplete=nurseVal&&(!ne.careMode||!ne.careShift||!ne.affiliation);
-        var display=nurseVal||(nurseIncomplete?'':'');
+        var isFamily=nurseVal==='家屬';
+        var nurseIncomplete=nurseVal&&!isFamily&&(!ne.careMode||!ne.careShift||!ne.affiliation);
         var cell='<td class="cell-editable" onclick="openCellPopup(event,\''+p.id+'\',\'nurse\')" '
           +(nurseIncomplete?'style="background:#fef3c7!important;"':'')+'>'
           +(nurseVal||'<span class="cell-placeholder">點擊編輯</span>')
@@ -1615,12 +1724,12 @@ function renderA(){
         return cell;
       })()
       +(function(){
-        var docFull=p.doctor||'';
-        var docName=docFull.includes('-')?docFull.split('-').slice(1).join('-'):docFull;
-        return '<td class="cell-editable" onclick="openDoctorPopupA(event,\''+p.id+'\')">'
-          +(docName||'<span class="cell-placeholder">點擊選擇</span>')+'</td>';
+        var from=p.fromPlace||'';
+        var fromNote=p.fromPlaceNote||'';
+        var label=from==='家'?'家':(fromNote||from||'');
+        return '<td class="cell-editable" onclick="openFromPlacePopup(event,\''+p.id+'\')">'
+          +(label||'<span class="cell-placeholder">點擊選擇</span>')+'</td>';
       })()
-      +editTd(p,'dx',p.dx)
       +checkCell(p,'fall')
       +checkCell(p,'dnr')
       +checkCell(p,'iso')
@@ -1807,7 +1916,7 @@ function buildIsoForm(d,p){
     +'<button class="btn btn-sm btn-primary" style="margin-top:10px;" onclick="addIsoBlock()">＋ 新增隔離次數</button></div>';
 }
 function buildIsoBlocksHtml(blocks){
-  const specimenOpts=['痰','尿','大便','PCN-L','PCN-R','傷口','疥瘡','pigtail'];
+  const specimenOpts=getIsoSpecimenList();
   const bacteriaOpts=['CRE','CRAB','CRPA','VRE','疥瘡'];
   return blocks.map(function(b,i){
     const resolved=b.resolveDate&&b.resolveDate.trim();
@@ -2039,7 +2148,7 @@ function selectWoundCase(el,val){
 
 
 function buildDcForm(d,p){
-  var contentOpts=['CVA','安置','14天','NT 1st管','居家有管 NF','F 1st管','其他'];
+  var contentOpts=getDcContentsList();
   var sel=d.contents||[];
   var contWarn=!(sel&&sel.length>0);
   var wS='border:1.5px solid #f59e0b;background:#fffbeb;';
@@ -2143,7 +2252,53 @@ function saveDetailPanel(){
 }
 
 /* ── CELL POPUP ── */
-var _doctorPopupPid=null;
+var _fromPlacePid=null;
+function openFromPlacePopup(e,patientId){
+  _fromPlacePid=patientId;
+  var p=patients.find(function(x){return String(x.id).trim()===String(patientId).trim();});
+  if(!p)return;
+  var cur=p.fromPlace||'';
+  var note=p.fromPlaceNote||'';
+  document.getElementById('popupTitle').textContent=(p.name||patientId)+' — 來自';
+  document.getElementById('popupBody').innerHTML=
+    '<div style="margin-bottom:8px;font-size:12px;color:var(--text-muted);">選擇來源</div>'
+    +'<div class="tube-option" onclick="selectFromPlaceOpt(\'家\')">'
+    +'<input type="radio" name="fromplace_opt" value="家"'+(cur==='家'?' checked':'')+'>'
+    +'<label style="flex:1;pointer-events:none;">家</label></div>'
+    +'<div id="fromPlaceNoteWrap" style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;">'
+    +'<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">其他（填入名稱）</div>'
+    +'<input type="text" id="fromPlaceNoteInput" placeholder="例：○○安養院" value="'+esc(note)+'" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;outline:none;">'
+    +'</div>';
+  var popup=document.getElementById('cellPopup');popup.style.display='block';
+  if(e&&e.target){
+    var rect=e.target.closest('td').getBoundingClientRect();
+    var top=rect.bottom+4,left=rect.left;
+    if(top+400>window.innerHeight)top=Math.max(8,window.innerHeight-408);
+    if(left+320>window.innerWidth)left=window.innerWidth-330;
+    popup.style.top=Math.max(8,top)+'px';popup.style.left=Math.max(8,left)+'px';
+  }
+  document.getElementById('cellPopupOverlay').classList.add('open');
+  document.querySelector('#cellPopup .btn-primary').onclick=saveFromPlacePopup;
+}
+function selectFromPlaceOpt(val){
+  document.querySelectorAll('#popupBody input[name="fromplace_opt"]').forEach(function(r){r.checked=false;});
+  var el=document.querySelector('#popupBody input[value="'+val+'"]');
+  if(el)el.checked=true;
+}
+function saveFromPlacePopup(){
+  if(!_fromPlacePid)return;
+  var p=patients.find(function(x){return String(x.id).trim()===String(_fromPlacePid).trim();});
+  if(!p){closeCellPopup();return;}
+  var radio=document.querySelector('#popupBody input[name="fromplace_opt"]:checked');
+  var note=document.getElementById('fromPlaceNoteInput');
+  p.fromPlace=radio?radio.value:'';
+  p.fromPlaceNote=note?note.value.trim():'';
+  savePatients();
+  _fromPlacePid=null;
+  closeCellPopup();
+  document.querySelector('#cellPopup .btn-primary').onclick=saveCellPopup;
+  renderA();
+}
 function openDoctorPopupA(e,patientId){
   _doctorPopupPid=patientId;
   var p=patients.find(function(x){return String(x.id).trim()===String(patientId).trim();});
@@ -2477,7 +2632,7 @@ function clearBLog(){
   bLog=getBLog();
   var days=Object.keys(bLog).length;
   if(days===0){showConfirm('目前沒有B組報表資料。',function(){});return;}
-  showConfirm('確定要清除B組報表內容（共'+days+'日）？此操作無法還原，請先匯出 PDF。','我已匯出 PDF',function(ok){
+  showConfirm('確定要清除B組報表內容（共'+days+'日）？此操作無法還原，請先匯出 PDF。',function(ok){
     if(!ok)return;
     // Clear 管路/成大/照服員/科別 log entries (keep the keys but zero them)
     var KEY_NRS='ward_nursing_data';
@@ -2505,7 +2660,7 @@ function clearBLog(){
     }catch(e){}
     updateBLogCount();
     showConfirm('B組報表已清除完成。',function(){});
-  });
+  },'我已匯出 PDF');
 }
 function updateBLogCount(){
   var el=document.getElementById('bLogCount');
@@ -2538,7 +2693,7 @@ function clearDischarged(){
   var discharged=patients.filter(function(p){return p.discharge;});
   var n=discharged.length;
   if(!n){showConfirm('目前沒有已出院病人。',function(){});return;}
-  showConfirm('確定要清除 '+n+' 位已出院病人？此操作無法還原，請先匯出 PDF。','我已匯出 PDF',function(ok){
+  showConfirm('確定要清除 '+n+' 位已出院病人？此操作無法還原，請先匯出 PDF。',function(ok){
     if(!ok)return;
     // 1. 移除A組已出院病人
     patients=patients.filter(function(p){return !p.discharge;});
@@ -2562,7 +2717,7 @@ function clearDischarged(){
     updateDischargedCount();
     renderA();renderAStats();
     showConfirm('已清除 '+n+' 位已出院病人，並完成月結處理。',function(){});
-  });
+  },'我已匯出 PDF');
 }
 
 /* ── PDF ── */
@@ -2790,7 +2945,13 @@ function showAlert(msg){
   var el=document.getElementById('alertMsg');if(el)el.textContent=msg||'';
   document.getElementById('alertOverlay').style.display='flex';
 }
-function showConfirm(msg, cb, okLabel){
+function showConfirm(msg, cbOrLabel, cbOrUndef, okLabelOrUndef){
+  // 支援兩種呼叫方式：
+  // showConfirm(msg, cb)
+  // showConfirm(msg, cb, okLabel)  ← 正確順序
+  var cb, okLabel;
+  if(typeof cbOrLabel==='function'){cb=cbOrLabel;okLabel=cbOrUndef;}
+  else{okLabel=cbOrLabel;cb=cbOrUndef;}  // 舊式錯誤順序相容
   var cm=document.getElementById('confirmMsg'); if(cm)cm.textContent=msg||'確定要刪除？';
   var okBtn=document.getElementById('confirmOkBtn'); if(okBtn)okBtn.textContent=okLabel||'確定';
   document.getElementById('confirmOverlay').style.display='flex';
@@ -2992,7 +3153,7 @@ function showBTab(tab){
     document.getElementById('btab-'+t).classList.toggle('active',t===tab);
   });
   if(tab==='overview'){renderBTable();var tbody=document.getElementById('bTableBody');if(tbody&&!tbody._bListener){tbody._bListener=true;document.getElementById('bTable').addEventListener('click',onBTableClick);document.getElementById('bTable').addEventListener('change',onBTableClick);}}
-  if(tab==='daily') renderBDaily();
+  if(tab==='daily'){renderBDaily();initBDaySelector();}
   if(tab==='tube') renderBLog('tube');
   if(tab==='ncku') renderBLog('ncku');
   if(tab==='caregiver') renderBLog('caregiver');
@@ -3030,7 +3191,7 @@ function renderBTable(){
     var deptHasDoc=deptIsNone||(deptVal.includes('-'));
     var deptWarn=deptVal&&!deptIsNone&&!deptHasDoc; // 有科別但沒選醫師
     var deptColor=deptIsNone?'color:#92400e;background:#fef3c7;border-color:#fcd34d;':(deptWarn?'color:#dc2626;border-color:#ef4444;':'');
-    var missingFields=d.isNew&&(!d.source||!deptVal||cgFull.length===0||deptWarn);
+    var missingFields=d.isNew; // 只要勾選新病人就顯示紅框提醒
     // Row group color: A101=0,A102=1, A103-x=2, A104-x=3...
     var bIdx=B_BEDS.findIndex(function(x){return x.id===b.id;});
     var rowGroup;
@@ -3038,8 +3199,9 @@ function renderBTable(){
     else if(b.id==='A102')rowGroup=1;
     else{var num=parseInt(b.id.replace(/[^0-9]/g,''));rowGroup=(num-101);}
     var rowEven=rowGroup%2===0;
+    var hasAnyContent=!!(d.admitDate||d.tubes&&d.tubes.length||d.source||deptVal||cgFull.length||d.placement);
     var rowBg=missingFields?'background:#fecaca;outline:2px solid #ef4444;':
-      (rowEven?'background:#bfdbfe;':'background:#fff;');
+      (hasAnyContent?'background:#bfdbfe;':'background:#fff;');
 
     var colIdx=0;
     return '<tr style="'+rowBg+'">'
@@ -4633,7 +4795,7 @@ function exportWoundPrint(){
     var pidMasked=String(p.pid||'').replace(/^0+/,'');pidMasked=pidMasked.length<=4?'****':pidMasked.slice(0,pidMasked.length-4)+'****';
     h+='<tr>';
     h+='<td class="l">'+esc(p.name)+'<br>'+esc(p.bed)+'<br>'+esc(pidMasked)+'<br>'+esc((p.gender||'')+'/'+(age?age+'歲':''))+'</td>';
-    h+='<td>'+esc(p.dx||'')+'</td>';
+    h+='<td>'+esc(getFormalDx(p.dx||''))+'</td>';
     h+='<td>'+esc(mapCg(p.nurse))+'</td>';
     h+='<td class="l">'+toRoc(p.admit)+(p.admit?' 入A1W':'')+(p.discharge?'<br>'+toRoc(p.discharge)+' 出院':'')+'</td>';
     h+='<td>'+v(d.caseType==='舊案（續上個月）')+'</td><td>'+v(d.caseType==='本月新個案')+'</td>';
@@ -5001,7 +5163,7 @@ function exportWoundDocx(){
             children:[p.name||'',p.bed||'',maskPid(p.pid),(p.gender||'')+'/'+(age?age+'歲':'')].map(function(t){return new docx.Paragraph({children:[new docx.TextRun({text:t,font:FONT_KAI,size:18})],alignment:docx.AlignmentType.LEFT,spacing:{before:0,after:0}});}),
             verticalAlign:docx.VerticalAlign.CENTER,borders:CB}),
           new docx.TableCell({width:{size:W.dx,type:docx.WidthType.DXA},
-            children:(p.dx||'').split('').map(function(c){return new docx.Paragraph({children:[new docx.TextRun({text:c,font:FONT_KAI,size:18})],alignment:docx.AlignmentType.CENTER,spacing:{before:0,after:0,line:220}});}),
+            children:(getFormalDx(p.dx||'')).split('').map(function(c){return new docx.Paragraph({children:[new docx.TextRun({text:c,font:FONT_KAI,size:18})],alignment:docx.AlignmentType.CENTER,spacing:{before:0,after:0,line:220}});}),
             verticalAlign:docx.VerticalAlign.CENTER,borders:CB}),
           new docx.TableCell({width:{size:W.nurse,type:docx.WidthType.DXA},
             children:mapCaregiver(p.nurse).split('').map(function(c){return new docx.Paragraph({children:[new docx.TextRun({text:c,font:FONT_KAI,size:18})],alignment:docx.AlignmentType.CENTER,spacing:{before:0,after:0,line:220}});}),
@@ -5117,13 +5279,31 @@ function renderNodcReport(){
 
   list.forEach(function(p,idx){
     var entry=getNodcEntry(p.id);
+
+    // 1. 外轉：自動帶入原因「其他因素」+「外轉→床位」
+    if(p.dischargeExt==='外轉'&&p.dischargeExtBed){
+      if(!entry.reason||entry.reason==='其他因素'){
+        entry.reason='其他因素';
+        entry.reasonOther='外轉→'+p.dischargeExtBed;
+        setNodcEntry(p.id,entry);
+      }
+    }
+    // 2. 出院返回：自動帶入A組「來自」欄
+    if(!entry.returnTo&&!entry.returnNote){
+      if(p.fromPlace||p.fromPlaceNote){
+        entry.returnTo=p.fromPlace||'';
+        entry.returnNote=p.fromPlaceNote||'';
+        setNodcEntry(p.id,entry);
+      }
+    }
+
     var age=calcAge(p.birth);
     var genderLine=(p.gender||'—')+'・'+(age?age+'歲':'—');
     var doctorFull=p.doctor||'';
     var doctorName=doctorFull.includes('-')?doctorFull.split('-').slice(1).join('-'):doctorFull;
     var doctorDisp=doctorName||'—';
     var reasonDisp=entry.reason==='其他因素'?(entry.reasonOther||'其他因素（未填）'):(entry.reason||'點擊選擇');
-    var returnDisp=entry.returnTo==='家'?'家':(entry.returnNote||'點擊選擇');
+    var returnDisp=entry.returnTo==='家'?'家':(entry.returnNote||entry.returnTo||'點擊選擇');
     var bg=idx%2===0?'#fff':'#f0f9ff';
     h+='<tr style="background:'+bg+'">';
     h+='<td>'+(idx+1)+'</td>';
@@ -5330,10 +5510,20 @@ function exportNodcPDF(downloadHtml){
   var h='<table><thead><tr><th>編號</th><th>床位</th><th>病歷號</th><th>病人資料</th><th>出院日期</th><th>主治醫師</th><th>無法今辦明出原因</th><th>出院返回</th></tr></thead><tbody>';
   list.forEach(function(p,idx){
     var entry=getNodcEntry(p.id);
+    // 外轉自動帶入
+    if(p.dischargeExt==='外轉'&&p.dischargeExtBed&&(!entry.reason||entry.reason==='其他因素')){
+      entry.reason='其他因素';
+      entry.reasonOther='外轉→'+p.dischargeExtBed;
+    }
+    // 出院返回自動帶入來自
+    if(!entry.returnTo&&!entry.returnNote&&(p.fromPlace||p.fromPlaceNote)){
+      entry.returnTo=p.fromPlace||'';
+      entry.returnNote=p.fromPlaceNote||'';
+    }
     var age=calcAge(p.birth);
     var genderLine=(p.gender||'')+'・'+(age?age+'歲':'');
     var reasonDisp=entry.reason==='其他因素'?('其他因素：'+(entry.reasonOther||'')):(entry.reason||'');
-    var returnDisp=entry.returnTo==='家'?'家':(entry.returnNote||'');
+    var returnDisp=entry.returnTo==='家'?'家':(entry.returnNote||entry.returnTo||'');
     var docFull=p.doctor||'';
     var docName=docFull.includes('-')?docFull.split('-').slice(1).join('-'):docFull;
     h+='<tr>'
