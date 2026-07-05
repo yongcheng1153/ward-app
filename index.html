@@ -54,12 +54,12 @@ tr.discharged td{background:var(--discharged-bg)!important;color:var(--discharge
 .bed-prev{font-size:10px;color:var(--text-muted);margin-top:1px;}
 .check-cell{width:50px;}
 .check-wrap{display:inline-flex;flex-direction:column;align-items:center;gap:2px;}
-.check-box{width:22px;height:22px;border:2px solid var(--border-strong);border-radius:4px;display:inline-flex;align-items:center;justify-content:center;transition:all .15s;background:#fff;font-size:13px;cursor:pointer;}
+.check-box{width:18px;height:18px;border:2px solid var(--border-strong);border-radius:4px;display:inline-flex;align-items:center;justify-content:center;transition:all .15s;background:#fff;font-size:11px;cursor:pointer;}
 .check-box:hover{border-color:var(--check-blue);}
 .check-box.checked{background:var(--check-blue-bg);border-color:var(--check-blue);color:var(--check-blue);}
 .check-detail-dot{width:6px;height:6px;border-radius:50%;background:var(--warning);display:none;}
 .check-detail-dot.has-data{display:block;}
-.check-open-btn{font-size:9px;color:var(--primary);text-decoration:underline;cursor:pointer;background:none;border:none;padding:0;line-height:1;}
+.check-open-btn{font-size:12px;color:var(--primary);text-decoration:underline;cursor:pointer;background:none;border:none;padding:0;line-height:1;}
 .cell-editable{cursor:pointer;min-width:60px;transition:background .15s;}
 .cell-editable:hover{background:#eff6ff!important;}
 .cell-placeholder{color:#cbd5e1;font-style:italic;font-size:11px;}
@@ -366,13 +366,13 @@ pullAll().then(()=>{
   </div>
   <!-- ── 主選單 ── -->
   <div id="home-screen-app" style="min-height:calc(100vh - 56px);display:flex;align-items:center;justify-content:center;background:var(--bg);">
-    <div style="width:min(680px,95vw);">
+    <div style="width:min(820px,95vw);">
       <div style="text-align:center;margin-bottom:36px;">
         <div style="font-size:36px;margin-bottom:8px;">🏥</div>
         <div style="font-size:22px;font-weight:800;color:var(--text);">A1病房管理系統</div>
         <div id="homeMonthLabel" style="font-size:13px;color:var(--text-muted);margin-top:4px;"></div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;">
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:16px;">
         <div onclick="showModule('form')" style="background:#fff;border:2px solid var(--border);border-radius:14px;padding:28px 12px;text-align:center;cursor:pointer;transition:box-shadow .2s,border-color .2s;" onmouseover="this.style.boxShadow='0 6px 20px rgba(14,116,144,.2)';this.style.borderColor='#0e7490'" onmouseout="this.style.boxShadow='';this.style.borderColor='var(--border)'">
           <div style="font-size:36px;margin-bottom:10px;">📋</div>
           <div style="font-size:15px;font-weight:700;color:#0e7490;margin-bottom:4px;">表單更新</div>
@@ -385,6 +385,11 @@ pullAll().then(()=>{
         <div onclick="showModule('stats')" style="background:#fff;border:2px solid var(--border);border-radius:14px;padding:28px 12px;text-align:center;cursor:pointer;transition:box-shadow .2s,border-color .2s;" onmouseover="this.style.boxShadow='0 6px 20px rgba(14,116,144,.2)';this.style.borderColor='#0e7490'" onmouseout="this.style.boxShadow='';this.style.borderColor='var(--border)'">
           <div style="font-size:36px;margin-bottom:10px;">📊</div>
           <div style="font-size:15px;font-weight:700;color:#0e7490;">報表形成專區</div>
+        </div>
+        <div onclick="window.open('https://docs.google.com/document/d/1PaHa5MZfQYWUAg-4jZeoKjvNNhhmWcNN/edit?usp=drive_link&ouid=100090754571252397683&rtpof=true&sd=true','_blank')" style="background:#fff;border:2px solid var(--border);border-radius:14px;padding:28px 12px;text-align:center;cursor:pointer;transition:box-shadow .2s,border-color .2s;" onmouseover="this.style.boxShadow='0 6px 20px rgba(14,116,144,.2)';this.style.borderColor='#0e7490'" onmouseout="this.style.boxShadow='';this.style.borderColor='var(--border)'">
+          <div style="font-size:36px;margin-bottom:10px;">🩹</div>
+          <div style="font-size:15px;font-weight:700;color:#0e7490;">傷口換藥清單</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">開啟 Google Docs</div>
         </div>
         <div onclick="showModule('admin')" style="background:#fff;border:2px solid var(--border);border-radius:14px;padding:28px 12px;text-align:center;cursor:pointer;transition:box-shadow .2s,border-color .2s;" onmouseover="this.style.boxShadow='0 6px 20px rgba(14,116,144,.2)';this.style.borderColor='#0e7490'" onmouseout="this.style.boxShadow='';this.style.borderColor='var(--border)'">
           <div style="font-size:36px;margin-bottom:10px;">⚙️</div>
@@ -932,6 +937,7 @@ function openNurseList(){
   nurseListData=getNurseListData();
   // Sync from patients: for each patient, ensure there's at least one row
   patients.forEach(function(p){
+    if(p.nurse==='家屬')return; // 家屬不加入看護一覽表
     var existing=nurseListData.filter(function(r){return r.patientId===p.id;});
     if(!existing.length){
       // Create default row from patient
@@ -1282,6 +1288,8 @@ function renderMorningTab(tab){
     list.forEach(function(p,ri){
       var d=p.details&&p.details.dnr||{};
       var items=[];
+      if(d.signDate)items.push('本院');
+      if(d.palliDate||d.palliNoDate)items.push('預立');
       if(d.fullRefuse)items.push('全拒');
       if(d.hospDecl)items.push('院宣');
       if(d.noMed)items.push('藥物');
@@ -1623,19 +1631,17 @@ function fieldWarn(p,field){
   if(field==='nurse') return false; // handled separately via nurseWarn
   if(field==='fall') return false;
   if(field==='dnr'){
-    const dateOk=!!(d.signDate||d.palliDate);
-    const fullOk=!!(d.fullRefuse||d.hospDecl);
-    const partOk=!!(d.noMed||d.noCPR||d.noDefib||d.noIntub);
-    return !dateOk||(!fullOk&&!partOk);
+    const dateOk=!!(d.signDate||d.palliDate||d.palliNoDate);
+    return !dateOk;
   }
   if(field==='iso'){
     const blocks=d.isoBlocks||[];
-    if(!blocks.length)return false;
+    if(!blocks.length)return true; // 勾選但未填細項
     return blocks.some(function(b){return !b.date||!b.specimen||!b.bacteria;});
   }
   if(field==='rest'){
     var blocks=d.restBlocks||[];
-    if(!blocks.length)return false;
+    if(!blocks.length)return true; // 勾選但未填細項
     return blocks.some(function(b){return !(b.methods&&b.methods.length>0)||!b.reason||!b.startTime;});
   }
   if(field==='wound'){
@@ -1890,8 +1896,7 @@ function buildFallForm(d,p){
 }
 
 function buildDnrForm(d,p){
-  var dateWarn=!(d.signDate||d.palliDate);
-  var choiceWarn=!(d.fullRefuse||d.hospDecl||d.noMed||d.noCPR||d.noDefib||d.noIntub);
+  var dateWarn=!(d.signDate||d.palliDate||d.palliNoDate);
   var warnBorder='border:1.5px solid #f59e0b;background:#fffbeb;';
   var warnTitle=' ⚠️';
   return '<div class="pf-section" style="'+(dateWarn?warnBorder:'')+'">'
@@ -1899,13 +1904,22 @@ function buildDnrForm(d,p){
     +'<div style="display:flex;flex-direction:column;gap:10px;">'
     +'<div class="pf-group"><div class="pf-label">本院簽立日期</div><input class="pf-input" type="date" id="pf_dnr_signDate" value="'+(d.signDate||'')+'" style="'+(dateWarn?'border-color:#f59e0b;':'')+'"></div>'
     +'<div style="text-align:center;font-size:13px;font-weight:700;color:var(--text-muted);">— 或 —</div>'
-    +'<div class="pf-group"><div class="pf-label">預立安寧日期</div><input class="pf-input" type="date" id="pf_dnr_palliDate" value="'+(d.palliDate||'')+'" style="'+(dateWarn?'border-color:#f59e0b;':'')+'"></div>'
+    +'<div class="pf-group">'
+      +'<div class="pf-label">預立安寧日期</div>'
+      +'<div style="display:flex;align-items:center;gap:10px;">'
+        +'<input class="pf-input" type="date" id="pf_dnr_palliDate" value="'+(d.palliDate||'')+'" style="flex:1;'+(dateWarn?'border-color:#f59e0b;':'')+'" '+(d.palliNoDate?'disabled':'')+' >'
+        +'<label style="display:flex;align-items:center;gap:4px;font-size:13px;white-space:nowrap;cursor:pointer;">'
+          +'<input type="checkbox" id="pf_dnr_palliNoDate" '+(d.palliNoDate?'checked':'')+' onchange="var d=document.getElementById(\'pf_dnr_palliDate\');if(this.checked){d.value=\'\';d.disabled=true;}else{d.disabled=false;}">'
+          +'無日期（健保卡註記）'
+        +'</label>'
+      +'</div>'
+    +'</div>'
     +'</div></div>'
-    +'<div class="pf-section" style="'+(choiceWarn?warnBorder:'')+'">'
-    +'<div class="pf-section-title">全拒'+(choiceWarn?warnTitle:'')+'</div>'
+    +'<div class="pf-section">'
+    +'<div class="pf-section-title">全拒<span style="font-size:11px;color:var(--text-muted);margin-left:6px;">（可不填）</span></div>'
     +'<div class="pill-group" id="pf_dnr_full">'+pill('fullRefuse','全拒',d.fullRefuse)+pill('hospDecl','院宣',d.hospDecl)+'</div></div>'
-    +'<div class="pf-section" style="'+(choiceWarn?warnBorder:'')+'">'
-    +'<div class="pf-section-title">未全拒 — 細項'+(choiceWarn?warnTitle:'')+'</div>'
+    +'<div class="pf-section">'
+    +'<div class="pf-section-title">未全拒 — 細項<span style="font-size:11px;color:var(--text-muted);margin-left:6px;">（可不填）</span></div>'
     +'<div class="pill-group" id="pf_dnr_partial">'+pill('noMed','藥物',d.noMed)+pill('noCPR','壓胸',d.noCPR)+pill('noDefib','電擊',d.noDefib)+pill('noIntub','插管',d.noIntub)+'</div></div>';
 }
 
@@ -2042,21 +2056,26 @@ function removeRestBlock(i){
   document.getElementById('restBlocksContainer').innerHTML=buildRestBlocksHtml(p.details[detailField].restBlocks,p);
 }
 function _readRestBlocks(p){
-  var blocks=p.details[detailField]&&p.details[detailField].restBlocks||[];
-  blocks.forEach(function(b,i){
+  if(!p.details[detailField])p.details[detailField]={};
+  // 從DOM讀取所有rest_N_*欄位，不依賴既有的restBlocks
+  var blocks=[];
+  var i=0;
+  while(document.getElementById('rest_'+i+'_startTime_date')!==null||document.querySelector('#rest_'+i+'_methods')){
     var mPills=document.querySelectorAll('#rest_'+i+'_methods .pill.on');
-    b.methods=Array.from(mPills).map(function(el){return el.textContent;});
     var rPill=document.querySelector('#rest_'+i+'_reason .pill.on');
-    b.reason=rPill?rPill.textContent:'';
     var sd=document.getElementById('rest_'+i+'_startTime_date');
     var sh=document.getElementById('rest_'+i+'_startTime_hour');
-    b.startTime=sd&&sh&&sd.value&&sh.value?(sd.value+'T'+sh.value+':00'):'';
     var ed=document.getElementById('rest_'+i+'_endTime_date');
     var eh=document.getElementById('rest_'+i+'_endTime_hour');
-    b.endTime=ed&&eh&&ed.value&&eh.value?(ed.value+'T'+eh.value+':00'):'';
-  });
-  if(!p.details[detailField])p.details[detailField]={};
-  p.details[detailField].restBlocks=blocks;
+    blocks.push({
+      methods:Array.from(mPills).map(function(el){return el.textContent;}),
+      reason:rPill?rPill.textContent:'',
+      startTime:sd&&sh&&sd.value&&sh.value?(sd.value+'T'+sh.value+':00'):'',
+      endTime:ed&&eh&&ed.value&&eh.value?(ed.value+'T'+eh.value+':00'):''
+    });
+    i++;
+  }
+  if(blocks.length>0)p.details[detailField].restBlocks=blocks;
 }
 
 function buildWoundForm(d,p){
@@ -2162,8 +2181,9 @@ function buildDcForm(d,p){
 }
 
 function selectOnePill(el,groupId){
+  var wasOn=el.classList.contains('on');
   document.querySelectorAll('#'+groupId+' .pill').forEach(function(p){p.classList.remove('on');});
-  el.classList.add('on');
+  if(!wasOn) el.classList.add('on');
 }
 function getSelectedPills(groupId){
   return Array.from(document.querySelectorAll('#'+groupId+' .pill.on')).map(function(p){return p.textContent;});
@@ -2198,18 +2218,25 @@ function removeIsoBlock(i){
 }
 
 function _readIsoBlocks(p){
-  var blocks=p.details[detailField].isoBlocks||[];
-  blocks.forEach(function(b,i){
+  if(!p.details[detailField])p.details[detailField]={};
+  // 從DOM讀取所有iso_N_*欄位，不依賴既有的isoBlocks
+  var blocks=[];
+  var i=0;
+  while(document.getElementById('iso_'+i+'_date')!==null){
     var d2=document.getElementById('iso_'+i+'_date');
     var sp=document.getElementById('iso_'+i+'_specimen');
     var ba=document.getElementById('iso_'+i+'_bacteria');
     var rd=document.getElementById('iso_'+i+'_resolveDate');
-    if(d2)b.date=d2.value;
-    if(sp)b.specimen=sp.value;
-    if(ba)b.bacteria=ba.value;
-    if(rd)b.resolveDate=rd.value;
-  });
-  p.details[detailField].isoBlocks=blocks;
+    blocks.push({
+      date:d2?d2.value:'',
+      specimen:sp?sp.value:'',
+      bacteria:ba?ba.value:'',
+      resolveDate:rd?rd.value:''
+    });
+    i++;
+  }
+  // 如果DOM裡完全沒有block（不應發生），保留既有資料
+  if(blocks.length>0)p.details[detailField].isoBlocks=blocks;
 }
 
 function saveDetailPanel(){
@@ -2221,6 +2248,7 @@ function saveDetailPanel(){
     d.caseDate=v('pf_fall_caseDate');d.note=v('pf_fall_note');
   } else if(field==='dnr'){
     d.signDate=v('pf_dnr_signDate');d.palliDate=v('pf_dnr_palliDate');
+    var _palliNoCb=document.getElementById('pf_dnr_palliNoDate');d.palliNoDate=_palliNoCb?_palliNoCb.checked:false;
     const fr=getSelectedPills('pf_dnr_full');
     d.fullRefuse=fr.includes('全拒');d.hospDecl=fr.includes('院宣');
     d.noMed=getSelectedPills('pf_dnr_partial').includes('藥物');
@@ -2281,9 +2309,17 @@ function openFromPlacePopup(e,patientId){
   document.querySelector('#cellPopup .btn-primary').onclick=saveFromPlacePopup;
 }
 function selectFromPlaceOpt(val){
-  document.querySelectorAll('#popupBody input[name="fromplace_opt"]').forEach(function(r){r.checked=false;});
-  var el=document.querySelector('#popupBody input[value="'+val+'"]');
-  if(el)el.checked=true;
+  var radio=document.querySelector('#popupBody input[name="fromplace_opt"][value="'+val+'"]');
+  if(!radio)return;
+  // radio已被瀏覽器設為checked，所以二次點擊需要透過data屬性判斷
+  var body=document.getElementById('popupBody');
+  var lastVal=body.getAttribute('data-last-fromplace');
+  if(lastVal===val){
+    radio.checked=false;
+    body.setAttribute('data-last-fromplace','');
+  } else {
+    body.setAttribute('data-last-fromplace',val);
+  }
 }
 function saveFromPlacePopup(){
   if(!_fromPlacePid)return;
@@ -2394,7 +2430,11 @@ function openCellPopup(e,patientId,field){
       +'<div class="option-chips">'
       +nurseList2.map(function(n){return '<span class="option-chip'+(n===cur2?' selected':'')
         +'" onclick="selectChip(this,\''+n.replace(/'/g,"\\'")+'\')" >'+n+'</span>';}).join('')
-      +'</div><div class="popup-divider">或手動輸入</div><input class="popup-input" id="popupInput" value="'+cur2+'" placeholder="自訂看護名稱">'
+      +'</div><div class="popup-divider">或手動輸入</div><input class="popup-input" id="popupInput" value="'+cur2+'" placeholder="自訂看護名稱" oninput="updateForeignerNameVisibility()">'
+      +'<div id="foreignerNameWrap" style="display:'+(cur2==='外傭'?'block':'none')+';margin-top:8px;">'
+      +'<div style="font-size:11px;font-weight:700;color:#dc2626;margin-bottom:4px;">⚠️ 外傭姓名（必填）</div>'
+      +'<input class="popup-input" id="foreignerNameInput" value="'+(p.nurseExtraName||'')+'" placeholder="請輸入外傭姓名">'
+      +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px;">'
       +'<div><div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:4px;">🏷️ 照護模式</div>'
       +'<div style="display:flex;flex-wrap:wrap;gap:4px;" id="nursePopupCareMode">'
@@ -2461,13 +2501,16 @@ function toggleExtBedInput(){
   if(wrap)wrap.style.display=(cb&&cb.checked)?'block':'none';
 }
 function selectNurseExtra(el,group){
+  var wasSelected=el.getAttribute('data-selected')==='1';
   var groupEl=document.getElementById('nursePopup'+group.charAt(0).toUpperCase()+group.slice(1));
   if(groupEl)groupEl.querySelectorAll('span').forEach(function(s){
     s.setAttribute('data-selected','0');
     s.style.background='#fff';s.style.color='#374151';s.style.borderColor='#e2e8f0';
   });
-  el.setAttribute('data-selected','1');
-  el.style.background='#1d4ed8';el.style.color='#fff';el.style.borderColor='#1d4ed8';
+  if(!wasSelected){
+    el.setAttribute('data-selected','1');
+    el.style.background='#1d4ed8';el.style.color='#fff';el.style.borderColor='#1d4ed8';
+  }
 }
 function getNurseExtraSelections(){
   var result={careMode:'',careShift:'',affiliation:''};
@@ -2485,6 +2528,14 @@ function selectChip(el,value){
   document.querySelectorAll('.option-chip').forEach(function(c){c.classList.remove('selected');});
   if(!was){el.classList.add('selected');popupSelectedChip=value;}else{popupSelectedChip=null;}
   const inp=document.getElementById('popupInput');if(inp)inp.value=popupSelectedChip||'';
+  updateForeignerNameVisibility();
+}
+function updateForeignerNameVisibility(){
+  var inp=document.getElementById('popupInput');
+  var wrap=document.getElementById('foreignerNameWrap');
+  if(!wrap)return;
+  var val=inp?inp.value.trim():'';
+  wrap.style.display=(val==='外傭')?'block':'none';
 }
 function saveCellPopup(){
   if(popupField==='__transfer__'){
@@ -2514,45 +2565,66 @@ function saveCellPopup(){
     var newExtra=getNurseExtraSelections();
     var oldNurse=_oldNurse;
     var newNurse=(popupSelectedChip!==null?popupSelectedChip:((document.getElementById('popupInput')||{}).value||'')).trim();
+    // 外傭必填名字
+    var foreignerName='';
+    if(newNurse==='外傭'){
+      var fInp=document.getElementById('foreignerNameInput');
+      foreignerName=fInp?fInp.value.trim():'';
+      if(!foreignerName){showAlert('⚠️ 請填入外傭姓名');return;}
+    }
+    // 家屬不加入看護一覽表
+    var isFamily=newNurse==='家屬';
+    p.nurseExtraName=foreignerName; // 儲存外傭姓名
     var isChange=!!(oldNurse&&newNurse&&oldNurse!==newNurse);
     p.nurseExtra=newExtra;
-    nurseListData=getNurseListData();
-    var existingRows=nurseListData.filter(function(r){return r.patientId===p.id;});
-    var activeRow=existingRows.find(function(r){return !r.endDate;});
-    var targetRow=activeRow||(existingRows.length?existingRows[existingRows.length-1]:null);
-    if(isChange&&targetRow){
-      savePatients();closeCellPopup();renderA();
-      showConfirm('是否更換看護？（'+oldNurse+' → '+newNurse+'）', function(ok){
-        if(ok){
-          var today=new Date().toISOString().slice(0,10);
-          if(!targetRow.endDate)targetRow.endDate=today;
-          var newRow=makeNurseRow(p,targetRow);
-          newRow.nurseName=newNurse;
-          newRow.careMode=newExtra.careMode||targetRow.careMode;
-          newRow.careShift=newExtra.careShift||targetRow.careShift;
-          newRow.affiliation=newExtra.affiliation||targetRow.affiliation;
-          newRow.startDate=today; newRow.endDate='';
-          var idx2=nurseListData.findIndex(function(x){return x.id===targetRow.id;});
-          nurseListData.splice(idx2+1,0,newRow);
-        } else {
-          targetRow.nurseName=newNurse;
-          targetRow.careMode=newExtra.careMode||targetRow.careMode;
-          targetRow.careShift=newExtra.careShift||targetRow.careShift;
-          targetRow.affiliation=newExtra.affiliation||targetRow.affiliation;
-        }
-        saveNurseListData();
-      });
-      return;
-    } else if(targetRow){
-      targetRow.nurseName=newNurse;
-      targetRow.careMode=newExtra.careMode||targetRow.careMode;
-      targetRow.careShift=newExtra.careShift||targetRow.careShift;
-      targetRow.affiliation=newExtra.affiliation||targetRow.affiliation;
-      if(!targetRow.startDate)targetRow.startDate=normalizeDate(p.admit);
+    if(!isFamily){
+      // 一覽表中nurseName：外傭顯示外傭姓名，其他顯示newNurse
+      var nurseListDisplayName=foreignerName||newNurse;
+      nurseListData=getNurseListData();
+      var existingRows=nurseListData.filter(function(r){return r.patientId===p.id;});
+      var activeRow=existingRows.find(function(r){return !r.endDate;});
+      var targetRow=activeRow||(existingRows.length?existingRows[existingRows.length-1]:null);
+      if(isChange&&targetRow){
+        savePatients();closeCellPopup();renderA();
+        showConfirm('是否更換看護？（'+oldNurse+' → '+newNurse+'）', function(ok){
+          if(ok){
+            var today=new Date().toISOString().slice(0,10);
+            if(!targetRow.endDate)targetRow.endDate=today;
+            var newRow=makeNurseRow(p,targetRow);
+            newRow.nurseName=nurseListDisplayName;
+            newRow.careMode=newExtra.careMode||targetRow.careMode;
+            newRow.careShift=newExtra.careShift||targetRow.careShift;
+            newRow.affiliation=newExtra.affiliation||targetRow.affiliation;
+            newRow.startDate=today; newRow.endDate='';
+            var idx2=nurseListData.findIndex(function(x){return x.id===targetRow.id;});
+            nurseListData.splice(idx2+1,0,newRow);
+          } else {
+            targetRow.nurseName=nurseListDisplayName;
+            targetRow.careMode=newExtra.careMode||targetRow.careMode;
+            targetRow.careShift=newExtra.careShift||targetRow.careShift;
+            targetRow.affiliation=newExtra.affiliation||targetRow.affiliation;
+          }
+          saveNurseListData();
+        });
+        return;
+      } else if(targetRow){
+        targetRow.nurseName=nurseListDisplayName;
+        targetRow.careMode=newExtra.careMode||targetRow.careMode;
+        targetRow.careShift=newExtra.careShift||targetRow.careShift;
+        targetRow.affiliation=newExtra.affiliation||targetRow.affiliation;
+        if(!targetRow.startDate)targetRow.startDate=normalizeDate(p.admit);
+      } else {
+        var newR=makeNurseRow(p,null);
+        newR.nurseName=nurseListDisplayName;
+        nurseListData.push(newR);
+      }
+      saveNurseListData();
     } else {
-      nurseListData.push(makeNurseRow(p,null));
+      // 家屬：移除其在一覽表中的記錄
+      nurseListData=getNurseListData();
+      nurseListData=nurseListData.filter(function(r){return r.patientId!==p.id;});
+      saveNurseListData();
     }
-    saveNurseListData();
   }
   savePatients();closeCellPopup();renderA();
 }
@@ -2808,7 +2880,7 @@ function buildListTable(field,list){
     h+='</tbody></table>';
   } else if(field==='dnr'){
     h='<table><thead><tr><th>床號</th><th>病例號</th><th>姓名</th><th>入院日期</th><th>入A1</th><th>出院日期</th><th>本院簽立</th><th>預立安寧</th><th>全拒</th><th>院宣</th><th>藥物</th><th>壓胸</th><th>電擊</th><th>插管</th></tr></thead><tbody>';
-    list.forEach(function(p){const d=p.details&&p.details.dnr||{};h+='<tr class="'+(p.discharge?'discharged':'')+'"><td>'+bedDisp(p)+'</td><td>'+(p.pid||'—')+'</td><td>'+p.name+'</td><td>'+(p.admit||'—')+'</td><td>'+(p.admit_a1||'—')+'</td><td>'+(p.discharge||'—')+'</td><td>'+(d.signDate||'—')+'</td><td>'+(d.palliDate||'—')+'</td><td>'+chk(d.fullRefuse)+'</td><td>'+chk(d.hospDecl)+'</td><td>'+chk(d.noMed)+'</td><td>'+chk(d.noCPR)+'</td><td>'+chk(d.noDefib)+'</td><td>'+chk(d.noIntub)+'</td></tr>';});
+    list.forEach(function(p){const d=p.details&&p.details.dnr||{};var palliDisp=d.palliDate||(d.palliNoDate?'✓（無日期）':'—');h+='<tr class="'+(p.discharge?'discharged':'')+'"><td>'+bedDisp(p)+'</td><td>'+(p.pid||'—')+'</td><td>'+p.name+'</td><td>'+(p.admit||'—')+'</td><td>'+(p.admit_a1||'—')+'</td><td>'+(p.discharge||'—')+'</td><td>'+(d.signDate||'—')+'</td><td>'+palliDisp+'</td><td>'+chk(d.fullRefuse)+'</td><td>'+chk(d.hospDecl)+'</td><td>'+chk(d.noMed)+'</td><td>'+chk(d.noCPR)+'</td><td>'+chk(d.noDefib)+'</td><td>'+chk(d.noIntub)+'</td></tr>';});
     h+='</tbody></table>';
   } else if(field==='iso'){
     h='<table><thead><tr><th>床號</th><th>病例號</th><th>姓名</th><th>入院日期</th><th>入A1</th><th>看護</th><th>出院日期</th><th>#</th><th>隔離日期</th><th>檢體</th><th>菌種</th><th>解/轉</th><th>解/轉日期</th></tr></thead><tbody>';
@@ -3449,12 +3521,18 @@ function openPlacementPopup(bedId){
   document.getElementById('tubePopupConfirmBtn').onclick=savePlacementPopup;
 }
 function selectPlacementOpt(val){
-  document.querySelectorAll('#tubeOptions input[name="placement_opt"]').forEach(function(r){r.checked=false;});
-  var radio=document.querySelector('#tubeOptions input[value="'+val+'"]');
-  if(radio)radio.checked=true;
-  // 選「家」時清空安養院輸入格
-  var noteInput=document.getElementById('placementNoteInput');
-  if(noteInput)noteInput.value='';
+  var radio=document.querySelector('#tubeOptions input[name="placement_opt"][value="'+val+'"]');
+  if(!radio)return;
+  var opts=document.getElementById('tubeOptions');
+  var lastVal=opts?opts.getAttribute('data-last-placement'):'';
+  if(lastVal===val){
+    radio.checked=false;
+    if(opts)opts.setAttribute('data-last-placement','');
+  } else {
+    document.querySelectorAll('#tubeOptions input[name="placement_opt"]').forEach(function(r){r.checked=false;});
+    radio.checked=true;
+    if(opts)opts.setAttribute('data-last-placement',val);
+  }
 }
 function savePlacementPopup(){
   if(!singlePopupBed)return;
@@ -3595,11 +3673,21 @@ function updateCgField(i,field,val){
 }
 function selectCgPill(el,i,field){
   var group=el.parentElement;
+  var lastKey='data-last-'+field+'-'+i;
+  var lastVal=group.getAttribute(lastKey)||'';
+  var clickedVal=el.textContent;
   group.querySelectorAll('.pill').forEach(function(p){p.classList.remove('on');});
-  el.classList.add('on');
-  var list=_getWorkingCgDetails();
-  if(!list[i])return;
-  list[i][field]=el.textContent;
+  if(lastVal===clickedVal){
+    // 二次點擊：取消選取
+    group.setAttribute(lastKey,'');
+    var list=_getWorkingCgDetails();
+    if(list[i])list[i][field]='';
+  } else {
+    el.classList.add('on');
+    group.setAttribute(lastKey,clickedVal);
+    var list=_getWorkingCgDetails();
+    if(list[i])list[i][field]=clickedVal;
+  }
 }
 function _rerenderCgList(list){
   window._cgWorking=list;
@@ -3614,7 +3702,11 @@ function _rerenderCgList(list){
 function saveCaregiverFromPopup(){
   if(!caregiverBedId)return;
   var list=window._cgWorking||getCgDetails(bData[caregiverBedId]||{});
-  var hasIncomplete=list.some(function(cg){return !cg.name||!cg.careMode||!cg.careShift||!cg.affiliation;});
+  var hasIncomplete=list.some(function(cg){
+    if(!cg.name)return true;
+    if(cg.name==='家屬')return false; // 家屬不必填照護模式/班別/隸屬
+    return !cg.careMode||!cg.careShift||!cg.affiliation;
+  });
   if(hasIncomplete){showAlert('⚠️ 請完整填寫每位看護的姓名／照護模式／班別／隸屬');return;}
   if(!bData[caregiverBedId])bData[caregiverBedId]={};
   bData[caregiverBedId].caregiverDetails=list;
@@ -3656,10 +3748,13 @@ function calcDailyStats(){
   var nhiTotal=26; // fixed NHI beds
   var emptyNhi=nhiTotal-nckuNhi-innerOccBeds;
   var cgForeign=0,cgLocal=0;
+  var cgNamesSeen=new Set();
   beds.forEach(function(d){
     var cgs=(d.caregivers||[]).concat(d.caregiverCustom?[d.caregiverCustom]:[]);
     cgs.forEach(function(c){
       if(!c||c==='家屬'||c==='無')return;
+      if(cgNamesSeen.has(c))return; // 同名字只算一次
+      cgNamesSeen.add(c);
       if(c==='外傭')cgForeign++;
       else cgLocal++;
     });
@@ -4269,7 +4364,7 @@ function exportPDF_A(){
   var fH='<div class="doc-header"><div class="doc-title">A1病房'+label+'跌倒評估高危險名單</div></div><table><tr><th>床號</th><th>病例號</th><th>姓名</th><th>入院日期</th><th>入A1</th><th>出院日期</th><th>結案日期</th><th>當月住院天數</th><th>備註</th></tr>';
   patients.filter(function(p){return p.fall;}).sort(function(a,b){var ad=a.details&&a.details.fall||{};var bd=b.details&&b.details.fall||{};return(!!(a.discharge||ad.caseDate))-(!!(b.discharge||bd.caseDate))||a.bed.localeCompare(b.bed,undefined,{numeric:true});}).forEach(function(p){var d=p.details&&p.details.fall||{};var isR=!!(p.discharge||d.caseDate);var stay='—';if(mP.length===2&&p.admit_a1){var mS=new Date(parseInt(mP[0]),parseInt(mP[1])-1,1);var aD=new Date((p.admit_a1||'').replace(/\//g,'-'));var eStr=d.caseDate||p.discharge||'';if(eStr){var eD=new Date(eStr.replace(/\//g,'-'));var sD=aD>mS?aD:mS;if(eD>=sD)stay=(Math.round((eD-sD)/86400000)+1)+'天';}}fH+='<tr class="'+(isR?'dis':'')+'"><td>'+esc(p.bed)+'</td><td>'+esc(p.pid)+'</td><td>'+esc(p.name)+'</td><td>'+esc(p.admit)+'</td><td>'+esc(p.admit_a1)+'</td><td>'+esc(p.discharge||'')+'</td><td>'+esc(d.caseDate||'')+'</td><td>'+stay+'</td><td style="text-align:left">'+esc(d.note||'')+'</td></tr>';});fH+='</table>';
   var dH='<div class="doc-header"><div class="doc-title">A1病房'+label+'DNR病患名單</div></div><table><tr><th>床號</th><th>病例號</th><th>姓名</th><th>入院</th><th>入A1</th><th>出院</th><th>本院簽立</th><th>預立安寧</th><th>全拒</th><th>院宣</th><th>藥物</th><th>壓胸</th><th>電擊</th><th>插管</th></tr>';
-  patients.filter(function(p){return p.dnr;}).forEach(function(p){var d=p.details&&p.details.dnr||{};dH+='<tr class="'+(p.discharge?'dis':'')+'"><td>'+esc(p.bed)+'</td><td>'+esc(p.pid)+'</td><td>'+esc(p.name)+'</td><td>'+esc(p.admit)+'</td><td>'+esc(p.admit_a1)+'</td><td>'+esc(p.discharge||'')+'</td><td>'+esc(d.signDate||'')+'</td><td>'+esc(d.palliDate||'')+'</td><td>'+chk(d.fullRefuse)+'</td><td>'+chk(d.hospDecl)+'</td><td>'+chk(d.noMed)+'</td><td>'+chk(d.noCPR)+'</td><td>'+chk(d.noDefib)+'</td><td>'+chk(d.noIntub)+'</td></tr>';});dH+='</table>';
+  patients.filter(function(p){return p.dnr;}).forEach(function(p){var d=p.details&&p.details.dnr||{};var palliDisp=d.palliDate||(d.palliNoDate?'✓（無日期）':'');dH+='<tr class="'+(p.discharge?'dis':'')+'"><td>'+esc(p.bed)+'</td><td>'+esc(p.pid)+'</td><td>'+esc(p.name)+'</td><td>'+esc(p.admit)+'</td><td>'+esc(p.admit_a1)+'</td><td>'+esc(p.discharge||'')+'</td><td>'+esc(d.signDate||'')+'</td><td>'+esc(palliDisp)+'</td><td>'+chk(d.fullRefuse)+'</td><td>'+chk(d.hospDecl)+'</td><td>'+chk(d.noMed)+'</td><td>'+chk(d.noCPR)+'</td><td>'+chk(d.noDefib)+'</td><td>'+chk(d.noIntub)+'</td></tr>';});dH+='</table>';
   var iH='<div class="doc-header"><div class="doc-title">A1病房'+label+'接觸隔離病患紀錄</div></div><table><tr><th>床號</th><th>病例號</th><th>姓名</th><th>入院</th><th>入A1</th><th>看護</th><th>出院</th><th>#</th><th>隔離日期</th><th>檢體</th><th>菌種</th><th>解/轉</th><th>解/轉日期</th></tr>';
   patients.filter(function(p){return p.iso;}).forEach(function(p){var d=p.details&&p.details.iso||{};var bks=d.isoBlocks||[];var isX=p.dischargeExt==='外轉';if(!bks.length){iH+='<tr><td>'+esc(p.bed)+'</td><td>'+esc(p.pid)+'</td><td>'+esc(p.name)+'</td><td>'+esc(p.admit)+'</td><td>'+esc(p.admit_a1)+'</td><td>'+esc(p.nurse||'')+'</td><td>'+esc(p.discharge||'')+'</td><td colspan="6">—</td></tr>';return;}bks.forEach(function(b,i){var hr=b.resolveDate&&b.resolveDate.trim();var rl=hr?'解':(isX&&p.discharge?'轉':'—');var rd=hr?b.resolveDate:(isX&&p.discharge?p.discharge:'—');iH+='<tr>'+(i===0?'<td rowspan="'+bks.length+'">'+esc(p.bed)+'</td><td rowspan="'+bks.length+'">'+esc(p.pid)+'</td><td rowspan="'+bks.length+'">'+esc(p.name)+'</td><td rowspan="'+bks.length+'">'+esc(p.admit)+'</td><td rowspan="'+bks.length+'">'+esc(p.admit_a1)+'</td><td rowspan="'+bks.length+'">'+esc(p.nurse||'')+'</td><td rowspan="'+bks.length+'">'+esc(p.discharge||'')+'</td>':'')+'<td>'+(i+1)+'</td><td>'+esc(b.date||'')+'</td><td>'+esc(b.specimen||'')+'</td><td>'+esc(b.bacteria||'')+'</td><td>'+rl+'</td><td>'+rd+'</td></tr>';});});iH+='</table>';
   var rH='<div class="doc-header"><div class="doc-title">A1病房'+label+'約束使用清單</div></div><table><tr><th>床號</th><th>病例號</th><th>姓名</th><th>入院</th><th>診斷</th><th>出院</th><th>約束方式</th><th>預防原因</th><th>開始時間</th><th>結束時間</th></tr>';
@@ -4687,24 +4782,36 @@ function renderPslotTable(){
   B_BEDS.forEach(function(b){
     var d=bData[b.id]||{};
     var cgDetails=d.caregiverDetails||[];
+    var caregivers=d.caregivers||[];
+    // 判斷是否為「空」或「家屬」特殊情況
+    var firstCg=caregivers[0]||'';
+    var isEmpty=!firstCg&&!!d.dept; // 有主治醫師才顯示「自己」
+    var isFamily=firstCg==='家屬';
     var rowCount=Math.max(1,cgDetails.length);
     var deptVal=d.dept||'';
     var doctorName=deptVal.includes('-')?deptVal.split('-').slice(1).join('-'):'';
     var placement=d.placement==='家'?'家':(d.placementNote||'');
-    var startDateVal=(d.pslotStartDate!==undefined&&d.pslotStartDate!=='')?d.pslotStartDate:(d.admitDate||'');
+    var startDateVal=(isEmpty||isFamily)?'':((d.pslotStartDate!==undefined&&d.pslotStartDate!=='')?d.pslotStartDate:(d.admitDate||''));
     for(var i=0;i<rowCount;i++){
       var cg=cgDetails[i]||{name:'',careMode:'',careShift:'',affiliation:''};
+      // 空白看護：顯示「自己」，其他欄空白
+      var cgName=isEmpty?'自己':(isFamily?'家屬':esc(cg.name||''));
+      var cgMode=(isEmpty||isFamily)?'':esc(cg.careMode||'');
+      var cgShift=(isEmpty||isFamily)?'':esc(cg.careShift||'');
+      var cgAffil=(isEmpty||isFamily)?'':esc(cg.affiliation||'');
       h+='<tr>';
       if(i===0){
         h+='<td rowspan="'+rowCount+'">'+esc(b.id)+'</td>'
-          +'<td rowspan="'+rowCount+'">'+esc(d.admitDate||'')+'</td>';
+          +'<td rowspan="'+rowCount+'">'+(isEmpty||isFamily?'':esc(d.admitDate||''))+'</td>';
       }
-      h+='<td>'+esc(cg.name||'')+'</td>'
-        +'<td>'+esc(cg.careMode||'')+'</td>'
-        +'<td>'+esc(cg.careShift||'')+'</td>'
-        +'<td>'+esc(cg.affiliation||'')+'</td>';
+      h+='<td>'+cgName+'</td>'
+        +'<td>'+cgMode+'</td>'
+        +'<td>'+cgShift+'</td>'
+        +'<td>'+cgAffil+'</td>';
       if(i===0){
-        h+='<td rowspan="'+rowCount+'"><input type="text" placeholder="同入院日期" value="'+esc(startDateVal)+'" data-b-bed="'+b.id+'" data-b-field="pslotStartDate" onchange="saveBInlineField(this)" style="width:90px;padding:3px 5px;border:1px solid var(--border);border-radius:4px;font-size:12px;text-align:center;box-sizing:border-box;"></td>'
+        var startDateInput=(isEmpty||isFamily)?'<td rowspan="'+rowCount+'"></td>':
+          '<td rowspan="'+rowCount+'"><input type="text" placeholder="同入院日期" value="'+esc(startDateVal)+'" data-b-bed="'+b.id+'" data-b-field="pslotStartDate" onchange="saveBInlineField(this)" style="width:90px;padding:3px 5px;border:1px solid var(--border);border-radius:4px;font-size:12px;text-align:center;box-sizing:border-box;"></td>';
+        h+=startDateInput
           +'<td rowspan="'+rowCount+'"></td>'
           +'<td rowspan="'+rowCount+'">'+esc(placement)+'</td>'
           +'<td rowspan="'+rowCount+'">'+esc(doctorName)+'</td>'
