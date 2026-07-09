@@ -2367,7 +2367,7 @@ function _readIsoBlocks(p){
 }
 
 function saveDetailPanel(){
-  const p=patients.find(function(x){return x.id===detailPatientId;});if(!p)return;
+  const p=patients.find(function(x){return String(x.id).trim()===String(detailPatientId).trim();});if(!p)return;
   if(!p.details)p.details={};
   const field=detailField;
   const d=p.details[field]||{};
@@ -3093,9 +3093,6 @@ function buildListTable(field,list){
         +'<div style="font-weight:700;font-size:13px;">'+p.name+'</div>'
         +'<div style="font-size:11px;color:#64748b;">'+p.pid+'</div>'
         +'<div style="font-size:11px;color:#64748b;">'+(gender||'')+(age?'・'+age+'歲':'')+'</div>';
-      var dateInfo='<div style="font-size:12px;">'+(p.admit||'—')+'</div>'
-        +'<div style="font-size:11px;color:#64748b;">'+(p.admit_a1||'—')+'</div>'
-        +'<div style="font-size:12px;color:'+(p.discharge?'#dc2626':'#94a3b8')+';font-weight:'+(p.discharge?'600':'400')+';">'+(p.discharge||'—')+'</div>';
       var blocks=d.woundBlocks&&d.woundBlocks.length?d.woundBlocks:[d];
       var rowCount=blocks.length;
       var allEnded=blocks.every(function(b){return !!(b.endDate&&b.endDate.trim());});
@@ -3108,16 +3105,23 @@ function buildListTable(field,list){
         var rowStyle=hasEnd?'background:#f1f5f9;color:#94a3b8;':baseStyle;
         var noteHtml=(b.note||'—').replace(/\n/g,'<br>');
         if(hasEnd)noteHtml+='<div style="color:#dc2626;font-weight:600;margin-top:4px;">'+b.endDate+' 結案</div>';
+        // 第三行：有結案日期 → 顯示結束日期（不論病人是否已出院）；否則沿用出院日期
+        var thirdLine=hasEnd
+          ?'<div style="font-size:12px;color:#dc2626;font-weight:600;">'+b.endDate+'</div>'
+          :'<div style="font-size:12px;color:'+(p.discharge?'#dc2626':'#94a3b8')+';font-weight:'+(p.discharge?'600':'400')+';">'+(p.discharge||'—')+'</div>';
+        var dateInfo='<div style="font-size:12px;">'+(p.admit||'—')+'</div>'
+          +'<div style="font-size:11px;color:#64748b;">'+(p.admit_a1||'—')+'</div>'
+          +thirdLine;
         h+='<tr style="'+rowStyle+'">';
         if(bi===0){
           // 基本欄只在allEnded或出院時變灰，否則維持白底
           var patStyle=(allEnded||isDis)?'background:#f1f5f9;color:#94a3b8;':'background:#fff;color:inherit;';
           h+='<td style="padding:8px 6px;vertical-align:top;'+patStyle+'" rowspan="'+rowCount+'">'+patInfo+'</td>'
             +'<td style="padding:8px 6px;vertical-align:top;'+patStyle+'" rowspan="'+rowCount+'">'+(p.dx||'—')+'</td>'
-            +'<td style="padding:8px 6px;vertical-align:top;text-align:center;'+patStyle+'" rowspan="'+rowCount+'">'+(p.nurse||'—')+'</td>'
-            +'<td style="padding:8px 6px;vertical-align:top;text-align:center;line-height:1.8;'+patStyle+'" rowspan="'+rowCount+'">'+dateInfo+'</td>';
+            +'<td style="padding:8px 6px;vertical-align:top;text-align:center;'+patStyle+'" rowspan="'+rowCount+'">'+(p.nurse||'—')+'</td>';
         }
-        h+='<td style="padding:8px 6px;vertical-align:top;">'+risks+'</td>'
+        h+='<td style="padding:8px 6px;vertical-align:top;text-align:center;line-height:1.8;">'+dateInfo+'</td>'
+          +'<td style="padding:8px 6px;vertical-align:top;">'+risks+'</td>'
           +'<td style="padding:8px 6px;vertical-align:top;white-space:normal;">'+noteHtml+'</td>'
           +'</tr>';
       });
@@ -4822,10 +4826,10 @@ function renderRestraintReport(){
     var hours=calcRestHours(b.startTime,b.endTime,ym);
     var durCol=hours<=4?'≤4':(hours<=8?'≤8':(hours<=24?'≤24':'>24'));
     var startDisp=b.startTime?(b.startTime.replace('T',' ').slice(0,16)):'';
-    // 開始時間調整顯示（若上月→顯示"上月"）
+    // 開始時間邏輯：若為當月→採用原始時間；若非當月（上月延續）→自動以當月01日08:00顯示
     var startActual=b.startTime?new Date(b.startTime):null;
     var startIsLastMonth=startActual&&(startActual.getFullYear()<p2.y||(startActual.getFullYear()===p2.y&&startActual.getMonth()+1<p2.m));
-    var startDisplayStr=startIsLastMonth?'(上月)'+startDisp:startDisp;
+    var startDisplayStr=startIsLastMonth?(p2.y+'-'+String(p2.m).padStart(2,'0')+'-01 08:00'):startDisp;
     var endDisp=b.endTime?b.endTime.replace('T',' ').slice(0,16):'持續約束中';
     var endReason=getRestEndReason(b,pat);
     var shift=getRestShiftCode(b.startTime);
@@ -5129,7 +5133,7 @@ function exportRestraintExcel(){
       var startActual=b.startTime?new Date(b.startTime):null;
       var startIsLastMonth=startActual&&(startActual.getFullYear()<p2.y||(startActual.getFullYear()===p2.y&&startActual.getMonth()+1<p2.m));
       var startDisp=b.startTime?b.startTime.replace('T',' ').slice(0,16):'';
-      if(startIsLastMonth)startDisp='(上月)'+startDisp;
+      if(startIsLastMonth)startDisp=p2.y+'-'+String(p2.m).padStart(2,'0')+'-01 08:00';
       var endDisp=b.endTime?b.endTime.replace('T',' ').slice(0,16):'持續約束中';
       var endReason=getRestEndReason(b,pat);
       var shift=getRestShiftCode(b.startTime);
@@ -5284,14 +5288,17 @@ function renderWoundReport(){
     var blocks=d.woundBlocks&&d.woundBlocks.length?d.woundBlocks:[d];
     var basicHtml='<td style="padding:6px;border:1px solid #cbd5e1;min-width:100px;">'+esc(p.name)+'<br>'+esc(p.bed)+'<br>'+esc(pidMasked)+'<br>'+esc((p.gender||'')+'/'+(age?age+'歲':''))+'</td>'
       +'<td style="padding:6px;border:1px solid #cbd5e1;">'+esc(p.dx||'')+'</td>'
-      +'<td style="padding:6px;border:1px solid #cbd5e1;">'+esc(p.nurse||'')+'</td>'
-      +'<td style="padding:6px;border:1px solid #cbd5e1;">'+esc(p.admit||'')+(p.discharge?'<br>出院:'+esc(p.discharge):'')+'</td>';
+      +'<td style="padding:6px;border:1px solid #cbd5e1;">'+esc(p.nurse||'')+'</td>';
     blocks.forEach(function(b,bi){
       var risks=b.riskFactors||[];
       var note=b.note||'';
       var bg=ri%2===0?'#fff':'#f0f9ff';
+      var hasEnd=!!(b.endDate&&b.endDate.trim());
+      // 有結案日期 → 顯示結束日期（不論病人是否已出院）；否則沿用出院日期
+      var admitHtml='<td style="padding:6px;border:1px solid #cbd5e1;">'+esc(p.admit||'')
+        +(hasEnd?'<br>'+esc(b.endDate)+'結案':(p.discharge?'<br>出院:'+esc(p.discharge):''))+'</td>';
       h+='<tr style="background:'+bg+';vertical-align:top;">';
-      h+=basicHtml;
+      h+=basicHtml+admitHtml;
       h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(b.caseType==='舊案（續上個月）')+'</td>';
       h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(b.caseType==='本月新個案')+'</td>';
       h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(b.newSource==='院外帶入')+'</td>';
