@@ -407,24 +407,43 @@ pullAll().then(()=>{
     <button class="tab-btn active" onclick="showTab('a')" id="tab-a">A組</button>
     <button class="tab-btn" onclick="showTab('b')" id="tab-b">B組</button>
   </div>
-  <div class="content" id="pane-a">
-    <div class="stats-row" id="aStats"></div>
-    <div class="toolbar">
-      <button class="btn btn-primary" onclick="openAddPatient()">＋ 新增病人</button>
-      <button class="btn" onclick="openNurseList()" style="background:#f0fdf4;border-color:#86efac;color:#15803d;font-weight:600;">👩‍⚕️ 看護一覽表</button>
-      <input class="search-input" placeholder="搜尋床號 / 姓名..." id="searchA" oninput="renderA()">
-      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="showDischarged" onchange="renderA()" checked> 顯示已出院</label>
+  <div class="content" id="pane-a" style="padding:0;">
+    <div style="position:sticky;top:100px;z-index:88;background:var(--bg);padding:12px 20px 8px;border-bottom:1px solid var(--border);box-shadow:0 2px 6px rgba(0,0,0,.06);">
+      <div class="stats-row" id="aStats" style="margin-bottom:8px;"></div>
+      <div class="toolbar" style="margin-bottom:0;">
+        <button class="btn btn-primary" onclick="openAddPatient()">＋ 新增病人</button>
+        <button class="btn" onclick="openNurseList()" style="background:#f0fdf4;border-color:#86efac;color:#15803d;font-weight:600;">👩‍⚕️ 看護一覽表</button>
+        <input class="search-input" placeholder="搜尋床號 / 姓名..." id="searchA" oninput="renderA()">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="showDischarged" onchange="renderA()" checked> 顯示已出院</label>
+      </div>
     </div>
-    <div class="table-wrap">
+    <div style="padding:12px 20px;">
+    <div class="table-wrap" style="overflow:visible;">
       <table>
         <thead><tr>
-          <th>床號</th><th>病例號</th><th>姓名</th><th>入院日期</th><th>入A1日期</th>
-          <th>性別</th><th>出生年</th><th>診斷</th><th>主治醫師</th><th>看護</th><th>來自</th>
-          <th>高跌</th><th>DNR</th><th>隔離</th><th>約束</th><th>壓瘡</th><th>出服</th>
-          <th>出院日期</th><th>操作</th>
+          <th style="position:sticky;top:var(--a-header-top,190px);z-index:20;">床號</th>
+          <th style="position:sticky;top:var(--a-header-top,190px);z-index:20;">病例號</th>
+          <th style="position:sticky;top:var(--a-header-top,190px);z-index:20;">姓名</th>
+          <th style="position:sticky;top:var(--a-header-top,190px);z-index:20;">入院日期</th>
+          <th style="position:sticky;top:var(--a-header-top,190px);z-index:20;">入A1日期</th>
+          <th style="position:sticky;top:var(--a-header-top,190px);z-index:20;">性別</th>
+          <th style="position:sticky;top:var(--a-header-top,190px);z-index:20;">出生年</th>
+          <th style="position:sticky;top:var(--a-header-top,190px);z-index:20;">診斷</th>
+          <th style="position:sticky;top:var(--a-header-top,190px);z-index:20;">主治醫師</th>
+          <th style="position:sticky;top:var(--a-header-top,190px);z-index:20;">看護</th>
+          <th style="position:sticky;top:var(--a-header-top,190px);z-index:20;">來自</th>
+          <th style="position:sticky;top:var(--a-header-top,190px);z-index:20;">高跌</th>
+          <th style="position:sticky;top:var(--a-header-top,190px);z-index:20;">DNR</th>
+          <th style="position:sticky;top:var(--a-header-top,190px);z-index:20;">隔離</th>
+          <th style="position:sticky;top:var(--a-header-top,190px);z-index:20;">約束</th>
+          <th style="position:sticky;top:var(--a-header-top,190px);z-index:20;">壓瘡</th>
+          <th style="position:sticky;top:var(--a-header-top,190px);z-index:20;">出服</th>
+          <th style="position:sticky;top:var(--a-header-top,190px);z-index:20;">出院日期</th>
+          <th style="position:sticky;top:var(--a-header-top,190px);z-index:20;">操作</th>
         </tr></thead>
         <tbody id="tableA"></tbody>
       </table>
+    </div>
     </div>
   </div>
   <div id="pane-b" style="display:none;">
@@ -1106,6 +1125,12 @@ window._fbOnSync = function(){
     if(typeof patients!=='undefined') patients=getPatients();
     if(typeof renderA==='function') renderA();
     if(typeof renderAStats==='function') renderAStats();
+    // B組目前分頁也同步更新
+    if(typeof renderBTab==='function') renderBTab();
+    else {
+      var activeBTab=document.querySelector('.b-tab-btn.active');
+      if(activeBTab){var tab=activeBTab.id.replace('btab-','');if(typeof showBTab==='function')showBTab(tab);}
+    }
   }catch(e){}
 };
 
@@ -1170,7 +1195,7 @@ function doLogin(){
   // 優先從 Firebase 即時取得最新密碼
   if(window._fbGet){
     window._fbGet(KEY_PASS, function(val){
-      if(val) localStorage.setItem(KEY_PASS, val);
+      if(val) lsSet(KEY_PASS, val);
       verify(val||ls(KEY_PASS));
     });
   } else {
@@ -1180,7 +1205,7 @@ function doLogin(){
 function doLogout(){
   document.getElementById('app').style.display='none';
   document.getElementById('login-screen').style.display='flex';
-  showHome && typeof showHome === 'function' && null; // reset handled on next login
+  showHome();
   const pi=document.getElementById('passInput');
   if(pi){pi.value='';pi.focus();}
   document.getElementById('loginError').textContent='';
@@ -1192,6 +1217,7 @@ function doInit(){
   if(!ls(KEY_NURSE_LIST))lsSet(KEY_NURSE_LIST,JSON.stringify(DEFAULT_NURSES));
   if(!ls(KEY_DX_LIST))lsSet(KEY_DX_LIST,JSON.stringify(DEFAULT_DX));
   updateMonthDisplay(); updateAdminPassDisplay(); updateDischargedCount(); initPasteHandlers();
+  window.addEventListener('resize', updateAHeaderTop);
   var pi=document.getElementById('passInput');
   if(pi){pi.addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});pi.focus();}
   var ai=document.getElementById('adminPassInput');
@@ -1204,7 +1230,7 @@ function showTab(t){
     document.getElementById('pane-'+x).style.display=x===t?'':'none';
     document.getElementById('tab-'+x).classList.toggle('active',x===t);
   });
-  if(t==='a'){renderA();renderAStats();}
+  if(t==='a'){renderA();renderAStats();setTimeout(updateAHeaderTop,50);}
 }
 
 
@@ -1249,7 +1275,7 @@ function renderMorningTab(tab){
 
   } else if(tab==='iso'){
     var list=sortList(patients.filter(function(p){return p.iso;}));
-    h='<table class="morning-table"><thead><tr><th>床號</th><th>姓名</th><th>看護</th><th>隔離日期</th><th>檢體</th><th>菌叢</th><th>解/轉</th></tr></thead><tbody>';
+    h='<table class="morning-table"><thead><tr><th>床號</th><th>姓名</th><th>看護</th><th>解/轉</th><th>隔離日期</th><th>檢體</th><th>菌叢</th></tr></thead><tbody>';
     if(!list.length)h+='<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px;">無隔離病人</td></tr>';
     list.forEach(function(p,ri){
       var d=p.details&&p.details.iso||{};
@@ -1272,10 +1298,10 @@ function renderMorningTab(tab){
             +'<td rowspan="'+blocks.length+'"><div class="morning-name">'+p.name+'</div></td>'
             +'<td rowspan="'+blocks.length+'">'+(p.nurse||'—')+'</td>';
         }
-        h+='<td>'+(b.date||'—')+'</td>'
+        h+='<td>'+rl+'</td>'
+          +'<td>'+(b.date||'—')+'</td>'
           +'<td>'+(b.specimen||'—')+'</td>'
           +'<td>'+(b.bacteria||'—')+'</td>'
-          +'<td>'+rl+'</td>'
           +'</tr>';
       });
     });
@@ -1327,19 +1353,38 @@ function renderMorningTab(tab){
 
   } else if(tab==='wound'){
     var list=sortList(patients.filter(function(p){return p.wound;}));
-    h='<table class="morning-table"><thead><tr><th>病人資料</th><th>傷口狀況</th></tr></thead><tbody>';
-    if(!list.length)h+='<tr><td colspan="2" style="text-align:center;color:var(--text-muted);padding:24px;">無壓瘡病人</td></tr>';
+    h='<table class="morning-table"><thead><tr><th>床號</th><th>姓名</th><th>看護</th><th>傷口狀況</th><th>結案</th></tr></thead><tbody>';
+    if(!list.length)h+='<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px;">無壓瘡病人</td></tr>';
     list.forEach(function(p,ri){
       var d=p.details&&p.details.wound||{};
-      var age=p.birth?(new Date().getFullYear()-(parseInt(p.birth)+1911))+'歲':'';
-      var info='<div class="morning-bed">'+p.bed+'</div>'
-        +'<div class="morning-name">'+p.name+'</div>'
-        +'<div style="font-size:11px;color:var(--text-muted);">'+(p.gender||'')+(age?'・'+age:'')+'</div>';
-      var note=(d.note||'—').replace(/\n/g,'<br>');
-      h+='<tr style="'+rowBg(p,ri)+'">'
-        +'<td style="min-width:100px;">'+info+'</td>'
-        +'<td style="white-space:normal;font-size:12px;">'+note+'</td>'
-        +'</tr>';
+      var blocks=d.woundBlocks&&d.woundBlocks.length?d.woundBlocks:[d];
+      if(!blocks.length||!blocks[0].note){
+        h+='<tr style="'+rowBg(p,ri)+'">'
+          +'<td><div class="morning-bed">'+p.bed+'</div></td>'
+          +'<td><div class="morning-name">'+p.name+'</div></td>'
+          +'<td>'+(p.nurse||'—')+'</td>'
+          +'<td colspan="2">—</td></tr>';
+        return;
+      }
+      var allEnded=blocks.every(function(b){return !!(b.endDate&&b.endDate.trim());});
+      var baseBg=rowBg(p,ri);
+      blocks.forEach(function(b,i){
+        var hasEnd=!!(b.endDate&&b.endDate.trim());
+        // 非全部結案時，tr 不設灰底，只讓傷口欄自己設色
+        var trStyle=allEnded?'background:#f1f5f9;color:#94a3b8;':baseBg;
+        var cellGray=(!allEnded&&hasEnd)?'background:#f1f5f9;color:#94a3b8;':'';
+        h+='<tr style="'+trStyle+'">';
+        if(i===0){
+          // 基本欄：allEnded時跟著tr灰，否則白底
+          var patCellStyle=allEnded?'':'background:#fff;color:inherit;';
+          h+='<td rowspan="'+blocks.length+'" style="'+patCellStyle+'"><div class="morning-bed">'+p.bed+'</div></td>'
+            +'<td rowspan="'+blocks.length+'" style="'+patCellStyle+'"><div class="morning-name">'+p.name+'</div></td>'
+            +'<td rowspan="'+blocks.length+'" style="'+patCellStyle+'">'+(p.nurse||'—')+'</td>';
+        }
+        h+='<td style="white-space:normal;font-size:12px;text-align:left;'+cellGray+'">'+(b.note||'—').replace(/\n/g,'<br>')+'</td>'
+          +'<td style="text-align:center;'+cellGray+'color:'+(hasEnd?'#dc2626':'var(--text-muted)')+';font-weight:'+(hasEnd?'700':'400')+';">'+(b.endDate||'—')+'</td>'
+          +'</tr>';
+      });
     });
     h+='</tbody></table>';
 
@@ -1645,9 +1690,17 @@ function fieldWarn(p,field){
     return blocks.some(function(b){return !(b.methods&&b.methods.length>0)||!b.reason||!b.startTime;});
   }
   if(field==='wound'){
-    if(!d.caseType) return true;
-    if(d.caseType==='本月新個案'&&(!d.newSource||!d.newDate)) return true;
-    return !(d.riskFactors&&d.riskFactors.length>0)||!d.note;
+    var blocks=d.woundBlocks;
+    if(!blocks||!blocks.length){
+      // 相容舊格式
+      if(!d.caseType)return true;
+      return !(d.riskFactors&&d.riskFactors.length>0)||!d.note;
+    }
+    return blocks.some(function(b){
+      if(!b.caseType)return true;
+      if(b.caseType==='本月新個案'&&(!b.newSource||!b.newDate))return true;
+      return !(b.riskFactors&&b.riskFactors.length>0)||!b.note;
+    });
   }
   if(field==='dc') return !(d.contents&&d.contents.length>0);
   return false;
@@ -1656,6 +1709,12 @@ function fieldWarn(p,field){
 /* ── TABLE ── */
 function calcAge(birthRoc){if(!birthRoc)return '';const ad=parseInt(birthRoc)+1911;return new Date().getFullYear()-ad;}
 
+function updateAHeaderTop(){
+  var stickyBar=document.querySelector('#pane-a [style*="position:sticky"]');
+  if(!stickyBar)return;
+  var h=stickyBar.getBoundingClientRect().bottom;
+  document.documentElement.style.setProperty('--a-header-top', Math.round(h)+'px');
+}
 function renderA(){
   const q=document.getElementById('searchA').value.toLowerCase();
   const showDis=document.getElementById('showDischarged').checked;
@@ -2079,90 +2138,158 @@ function _readRestBlocks(p){
 }
 
 function buildWoundForm(d,p){
+  var blocks=d.woundBlocks;
+  // 相容舊資料：如果沒有woundBlocks但有舊格式，自動轉換
+  if(!blocks||!blocks.length){
+    if(d.caseType||d.note){
+      blocks=[{
+        caseType:d.caseType||'',newSource:d.newSource||'',newDate:d.newDate||'',
+        vent:d.vent||'否',riskFactors:d.riskFactors||[],note:d.note||'',endDate:''
+      }];
+    } else {
+      blocks=[{caseType:'',newSource:'',newDate:'',vent:'否',riskFactors:[],note:'',endDate:''}];
+    }
+  }
   var riskOpts=['營養不良','活動減少','知覺改變','潮濕浸潤','慢性病','醫療器材'];
-  var selRisk=d.riskFactors||[];
-  var riskWarn=!(selRisk&&selRisk.length>0);
-  var noteWarn=!d.note;
-  var caseType=d.caseType||'';
-  var isNew=caseType==='本月新個案';
   var wS='border:1.5px solid #f59e0b;background:#fffbeb;';
-  var caseWarn=!caseType;
-  var sourceWarn=isNew&&!d.newSource;
-  var dateWarn=isNew&&!d.newDate;
 
-  var rHtml=riskOpts.map(function(r){
-    return '<div class="pill'+(selRisk.includes(r)?' on':'')+'" onclick="this.classList.toggle(\'on\')">'+r+'</div>';
-  }).join('');
+  function buildBlock(b,i){
+    var caseType=b.caseType||'';
+    var isNew=caseType==='本月新個案';
+    var selRisk=b.riskFactors||[];
+    var caseWarn=!caseType;
+    var noteWarn=!b.note;
+    var sourceWarn=isNew&&!b.newSource;
+    var dateWarn=isNew&&!b.newDate;
+    var rHtml=riskOpts.map(function(r){
+      return '<div class="pill'+(selRisk.includes(r)?' on':'')+'" onclick="this.classList.toggle(\'on\')">'+r+'</div>';
+    }).join('');
 
-  var out='';
+    var hasEnd=!!(b.endDate&&b.endDate.trim());
+    html='<div class="iso-block" id="woundBlock_'+i+'" style="border:1.5px solid '+(hasEnd?'#10b981':'#cbd5e1')+';border-radius:10px;padding:14px 14px 10px;margin-bottom:14px;position:relative;background:'+(hasEnd?'#ecfdf5':'#fff')+';">';
+    html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">';
+    html+='<div style="font-weight:700;color:#0e7490;font-size:13px;">🩹 壓瘡記錄 #'+(i+1)+'</div>';
+    if(blocks.length>1) html+='<button onclick="removeWoundBlock('+i+')" style="background:#fee2e2;border:1px solid #fca5a5;color:#dc2626;cursor:pointer;font-size:14px;font-weight:700;padding:4px 12px;border-radius:6px;">刪除此筆</button>';
+    html+='</div>';
 
-  // 1. 案別
-  out+='<div class="pf-section" style="'+(caseWarn?wS:'')+'">'
-    +'<div class="pf-section-title">案別'+(caseWarn?' ⚠️':'')+'</div>'
-    +'<div class="pill-group" id="pf_wound_caseType">'
-    +'<div class="pill'+(caseType==='舊案（續上個月）'?' on':'')+'" onclick="selectWoundCase(this,\'舊案（續上個月）\')">舊案（續上個月）</div>'
-    +'<div class="pill'+(caseType==='本月新個案'?' on':'')+'" onclick="selectWoundCase(this,\'本月新個案\')">本月新個案</div>'
-    +'</div></div>';
-
-  // 2. 新案來源（只有本月新個案才顯示）
-  if(isNew){
-    out+='<div class="pf-section" style="'+(sourceWarn?wS:'')+'">'
-      +'<div class="pf-section-title">新案來源'+(sourceWarn?' ⚠️':'')+'</div>'
-      +'<div class="pill-group" id="pf_wound_newSource">'
-      +'<div class="pill'+(d.newSource==='院外帶入'?' on':'')+'" onclick="selectOnePill(this,\'pf_wound_newSource\')">院外帶入</div>'
-      +'<div class="pill'+(d.newSource==='單位內發生'?' on':'')+'" onclick="selectOnePill(this,\'pf_wound_newSource\')">單位內發生</div>'
+    // 案別
+    html+='<div class="pf-section" style="'+(caseWarn?wS:'')+'">'
+      +'<div class="pf-section-title">案別'+(caseWarn?' ⚠️':'')+'</div>'
+      +'<div class="pill-group" id="wound_'+i+'_caseType">'
+      +'<div class="pill'+(caseType==='舊案（續上個月）'?' on':'')+'" onclick="selectWoundCase(this,\'舊案（續上個月）\','+i+')">舊案（續上個月）</div>'
+      +'<div class="pill'+(caseType==='本月新個案'?' on':'')+'" onclick="selectWoundCase(this,\'本月新個案\','+i+')">本月新個案</div>'
       +'</div></div>';
 
-    // 3. 新案發生日期（只輸入月/日）
-    var dateVal=d.newDate||'';
-    // 如果舊資料是完整日期格式(yyyy-mm-dd)，只取月/日
-    if(dateVal.match(/^\d{4}[-\/]\d{1,2}[-\/]\d{1,2}$/)){
-      var dp=dateVal.split(/[-\/]/);
-      dateVal=dp[1].padStart(2,'0')+'/'+dp[2].padStart(2,'0');
+    // 新案欄位
+    if(isNew){
+      html+='<div class="pf-section" style="'+(sourceWarn?wS:'')+'">'
+        +'<div class="pf-section-title">新案來源'+(sourceWarn?' ⚠️':'')+'</div>'
+        +'<div class="pill-group" id="wound_'+i+'_newSource">'
+        +'<div class="pill'+(b.newSource==='院外帶入'?' on':'')+'" onclick="selectOnePill(this,\'wound_'+i+'_newSource\')">院外帶入</div>'
+        +'<div class="pill'+(b.newSource==='單位內發生'?' on':'')+'" onclick="selectOnePill(this,\'wound_'+i+'_newSource\')">單位內發生</div>'
+        +'</div></div>';
+      var dv=b.newDate||'';
+      if(dv.match(/^\d{4}[-\/]\d{1,2}[-\/]\d{1,2}$/)){var dp=dv.split(/[-\/]/);dv=dp[1].padStart(2,'0')+'/'+dp[2].padStart(2,'0');}
+      html+='<div class="pf-section" style="'+(dateWarn?wS:'')+'">'
+        +'<div class="pf-section-title">新案發生日期'+(dateWarn?' ⚠️':'')+'</div>'
+        +'<input type="text" id="wound_'+i+'_newDate" value="'+dv+'" placeholder="MM/DD" maxlength="5" oninput="this.value=this.value.replace(/[^0-9\\/]/g,\'\')" '
+        +'style="padding:8px 12px;border:1px solid '+(dateWarn?'#f59e0b':'var(--border)')+';border-radius:8px;font-size:14px;outline:none;width:120px;"></div>';
     }
-    out+='<div class="pf-section" style="'+(dateWarn?wS:'')+'">'
-      +'<div class="pf-section-title">新案發生日期'+(dateWarn?' ⚠️':'')+'</div>'
-      +'<div class="pf-grid"><div class="pf-group">'
-      +'<input type="text" id="pf_wound_newDate" value="'+dateVal+'" placeholder="MM/DD 例：06/15" maxlength="5"'
-      +' oninput="this.value=this.value.replace(/[^0-9\/]/g,\'\')"'
-      +' style="padding:8px 12px;border:1px solid '+(dateWarn?'#f59e0b':'var(--border)')+';border-radius:8px;font-size:14px;outline:none;width:100%;max-width:160px;">'
-      +'</div></div></div>';
+
+    // 呼吸器
+    var ventVal=b.vent||'否';
+    html+='<div class="pf-section"><div class="pf-section-title">呼吸器使用</div>'
+      +'<div class="pill-group" id="wound_'+i+'_vent">'
+      +'<div class="pill'+(ventVal==='否'?' on':'')+'" onclick="selectOnePill(this,\'wound_'+i+'_vent\')">否</div>'
+      +'<div class="pill'+(ventVal==='是'?' on':'')+'" onclick="selectOnePill(this,\'wound_'+i+'_vent\')">是</div>'
+      +'</div></div>';
+
+    // 危險因子
+    var riskWarn=!(selRisk&&selRisk.length>0);
+    html+='<div class="pf-section" style="'+(riskWarn?wS:'')+'"><div class="pf-section-title">危險因子（可複選）'+(riskWarn?' ⚠️':'')+'</div>'
+      +'<div class="pill-group" id="wound_'+i+'_risks">'+rHtml+'</div></div>';
+
+    // 傷口狀況
+    var noteWarnS=noteWarn?'border-color:#f59e0b;':'';
+    html+='<div class="pf-section" style="'+(noteWarn?wS:'')+'">'
+      +'<div class="pf-section-title">傷口狀況（壓瘡部位、程度等）'+(noteWarn?' ⚠️ 必填':'')+'</div>'
+      +'<textarea class="pf-textarea" id="wound_'+i+'_note" placeholder="例：薦骨 2x3cm stage2，06/01發現..." style="min-height:144px;'+noteWarnS+'">'+(b.note||'')+'</textarea></div>';
+
+    // 結束日期
+    html+='<div class="pf-section"><div class="pf-section-title">結束日期（結案填入，格式 MM/DD）</div>'
+      +'<input type="text" id="wound_'+i+'_endDate" value="'+(b.endDate||'')+'" placeholder="MM/DD（未結案留空）" maxlength="5" '
+      +'oninput="this.value=this.value.replace(/[^0-9\\/]/g,\'\')" '
+      +'style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;outline:none;width:160px;"></div>';
+
+    html+='</div>';
+    return html;
   }
 
-  // 4. 呼吸器
-  var ventVal=d.vent||'否';
-  out+='<div class="pf-section">'
-    +'<div class="pf-section-title">呼吸器使用</div>'
-    +'<div class="pill-group" id="pf_wound_vent">'
-    +'<div class="pill'+(ventVal==='否'?' on':'')+'" onclick="selectOnePill(this,\'pf_wound_vent\')">否</div>'
-    +'<div class="pill'+(ventVal==='是'?' on':'')+'" onclick="selectOnePill(this,\'pf_wound_vent\')">是</div>'
-    +'</div></div>';
-
-  // 5. 危險因子
-  out+='<div class="pf-section" style="'+(riskWarn?wS:'')+'"><div class="pf-section-title">危險因子（可複選）'+(riskWarn?' ⚠️':'')+'</div><div class="pill-group" id="pf_wound_risks">'+rHtml+'</div></div>';
-
-  // 6. 傷口狀況
-  out+='<div class="pf-section" style="'+(noteWarn?wS:'')+'"><div class="pf-section-title">傷口狀況（壓瘡部位、程度等）'+(noteWarn?' ⚠️ 必填':'')+'</div>';
-  out+='<textarea class="pf-textarea" id="pf_wound_note" placeholder="例：薦骨 2x3cm stage2，2026/06/01發現..." style="'+(noteWarn?'border-color:#f59e0b;':'')+'">'+(d.note||'')+'</textarea></div>';
-
+  var out=blocks.map(function(b,i){return buildBlock(b,i);}).join('');
+  out+='<button onclick="addWoundBlock()" class="btn" style="width:100%;margin-top:4px;">＋ 新增壓瘡記錄（再發生使用）</button>';
   return out;
 }
 
-function selectWoundCase(el,val){
-  // 切換案別，並重新渲染（顯示/隱藏新案欄位）
-  document.querySelectorAll('#pf_wound_caseType .pill').forEach(function(p){p.classList.remove('on');});
+function selectWoundCase(el,val,idx){
+  var grpId='wound_'+idx+'_caseType';
+  document.querySelectorAll('#'+grpId+' .pill').forEach(function(p){p.classList.remove('on');});
   el.classList.add('on');
-  // 儲存當前其他欄位值再重繪
+  var p=patients.find(function(x){return String(x.id).trim()===String(detailPatientId).trim();});
+  if(!p||!p.details||!p.details[detailField])return;
+  var d=p.details[detailField];
+  if(!d.woundBlocks)return;
+  var b=d.woundBlocks[idx];if(!b)return;
+  // 讀取當前block其他欄位
+  b.caseType=val;
+  b.vent=(getSelectedPills('wound_'+idx+'_vent')[0])||'否';
+  b.riskFactors=getSelectedPills('wound_'+idx+'_risks');
+  var noteEl=document.getElementById('wound_'+idx+'_note');if(noteEl)b.note=noteEl.value;
+  var endEl=document.getElementById('wound_'+idx+'_endDate');if(endEl)b.endDate=endEl.value;
+  if(val==='舊案（續上個月）'){b.newSource='';b.newDate='';}
+  document.getElementById('panelBody').innerHTML=buildWoundForm(d,p);
+}
+function _readWoundBlocks(p){
+  if(!p.details[detailField])p.details[detailField]={};
+  var d=p.details[detailField];
+  var blocks=d.woundBlocks||[];
+  if(!blocks.length)return;
+  var i=0;
+  while(document.getElementById('woundBlock_'+i)){
+    if(!blocks[i])blocks[i]={};
+    var b=blocks[i];
+    b.caseType=(getSelectedPills('wound_'+i+'_caseType')[0])||'';
+    if(b.caseType==='本月新個案'){
+      b.newSource=(getSelectedPills('wound_'+i+'_newSource')[0])||'';
+      var ndEl=document.getElementById('wound_'+i+'_newDate');if(ndEl)b.newDate=ndEl.value;
+    }
+    b.vent=(getSelectedPills('wound_'+i+'_vent')[0])||'否';
+    b.riskFactors=getSelectedPills('wound_'+i+'_risks');
+    var noteEl=document.getElementById('wound_'+i+'_note');if(noteEl)b.note=noteEl.value;
+    var endEl=document.getElementById('wound_'+i+'_endDate');if(endEl)b.endDate=endEl.value;
+    i++;
+  }
+  d.woundBlocks=blocks.slice(0,i);
+}
+function addWoundBlock(){
   var p=patients.find(function(x){return String(x.id).trim()===String(detailPatientId).trim();});
   if(!p)return;
   if(!p.details)p.details={};
   if(!p.details[detailField])p.details[detailField]={};
   var d=p.details[detailField];
-  d.caseType=val;
-  d.riskFactors=getSelectedPills('pf_wound_risks');
-  d.note=document.getElementById('pf_wound_note')?document.getElementById('pf_wound_note').value:'';
-  d.vent=(getSelectedPills('pf_wound_vent')[0])||'否';
+  _readWoundBlocks(p);
+  if(!d.woundBlocks)d.woundBlocks=[];
+  d.woundBlocks.push({caseType:'',newSource:'',newDate:'',vent:'否',riskFactors:[],note:'',endDate:''});
   document.getElementById('panelBody').innerHTML=buildWoundForm(d,p);
+}
+function removeWoundBlock(idx){
+  var p=patients.find(function(x){return String(x.id).trim()===String(detailPatientId).trim();});
+  if(!p)return;
+  _readWoundBlocks(p);
+  var d=p.details[detailField];
+  if(d.woundBlocks&&d.woundBlocks.length>1){
+    d.woundBlocks.splice(idx,1);
+    document.getElementById('panelBody').innerHTML=buildWoundForm(d,p);
+  }
 }
 
 
@@ -2261,17 +2388,7 @@ function saveDetailPanel(){
     _readRestBlocks(p);
     if(!d.restBlocks||!d.restBlocks.length)d.restBlocks=[{methods:[],reason:'',startTime:'',endTime:''}];
   } else if(field==='wound'){
-    d.caseType=getSelectedPills('pf_wound_caseType')[0]||'';
-    // 只有本月新個案才更新來源和日期，舊案則保留原值
-    if(d.caseType==='本月新個案'){
-      d.newSource=getSelectedPills('pf_wound_newSource')[0]||'';
-      var ndEl=document.getElementById('pf_wound_newDate');
-      d.newDate=ndEl?ndEl.value:'';
-    }
-    // 舊案：d.newSource 和 d.newDate 維持不動
-    d.vent=getSelectedPills('pf_wound_vent')[0]||'否';
-    d.riskFactors=getSelectedPills('pf_wound_risks');
-    d.note=v('pf_wound_note');
+    _readWoundBlocks(p);
   } else if(field==='dc'){
     d.contents=getSelectedPills('pf_dc_contents');d.note=v('pf_dc_note');
   }
@@ -2753,9 +2870,12 @@ function resetWoundCaseType(){
   showConfirm('確定要將 '+woundPts.length+' 位壓瘡病人的案別全部改為「舊案（續上個月）」？',function(ok){
     if(!ok)return;
     woundPts.forEach(function(p){
-      p.details.wound.caseType='舊案（續上個月）';
-      p.details.wound.newSource='';
-      p.details.wound.newDate='';
+      var d=p.details.wound;
+      if(d.woundBlocks&&d.woundBlocks.length){
+        d.woundBlocks.forEach(function(b){b.caseType='舊案（續上個月）';b.newSource='';b.newDate='';});
+      } else {
+        d.caseType='舊案（續上個月）';d.newSource='';d.newDate='';
+      }
     });
     savePatients();
     showConfirm('已完成！共更新 '+woundPts.length+' 位病人的壓瘡案別。',function(){});
@@ -2769,12 +2889,20 @@ function clearDischarged(){
     if(!ok)return;
     // 1. 移除A組已出院病人
     patients=patients.filter(function(p){return !p.discharge;});
-    // 2. 剩下有壓瘡的人，案別全部改成「舊案（續上個月）」
+    // 2. 剩下有壓瘡的人，移除已結案的woundBlocks，剩下的案別改為舊案
     patients.forEach(function(p){
-      if(p.wound&&p.details&&p.details.wound&&p.details.wound.caseType){
-        p.details.wound.caseType='舊案（續上個月）';
-        p.details.wound.newSource='';
-        p.details.wound.newDate='';
+      if(!p.wound||!p.details||!p.details.wound)return;
+      var d=p.details.wound;
+      if(d.woundBlocks&&d.woundBlocks.length){
+        // 移除有結束日期的block
+        d.woundBlocks=d.woundBlocks.filter(function(b){return !b.endDate||!b.endDate.trim();});
+        // 剩下的案別改為舊案
+        d.woundBlocks.forEach(function(b){b.caseType='舊案（續上個月）';b.newSource='';b.newDate='';});
+        // 若全部被移除，取消壓瘡勾選
+        if(!d.woundBlocks.length)p.wound=false;
+      } else if(d.caseType){
+        // 舊格式相容
+        d.caseType='舊案（續上個月）';d.newSource='';d.newDate='';
       }
     });
     savePatients();
@@ -2960,30 +3088,39 @@ function buildListTable(field,list){
       var d=p.details&&p.details.wound||{};
       var age=calcAge(p.birth);var gender=p.gender||'';
       var isDis=!!p.discharge;
-      var rowStyle=isDis?'background:#f1f5f9;color:#94a3b8;':'';
-      // 病人資料欄
+      var baseStyle=isDis?'background:#f1f5f9;color:#94a3b8;':'';
       var patInfo='<div style="font-weight:700;color:#1d4ed8;">'+bedDisp(p)+'</div>'
         +'<div style="font-weight:700;font-size:13px;">'+p.name+'</div>'
         +'<div style="font-size:11px;color:#64748b;">'+p.pid+'</div>'
         +'<div style="font-size:11px;color:#64748b;">'+(gender||'')+(age?'・'+age+'歲':'')+'</div>';
-      // 日期欄
       var dateInfo='<div style="font-size:12px;">'+(p.admit||'—')+'</div>'
         +'<div style="font-size:11px;color:#64748b;">'+(p.admit_a1||'—')+'</div>'
         +'<div style="font-size:12px;color:'+(p.discharge?'#dc2626':'#94a3b8')+';font-weight:'+(p.discharge?'600':'400')+';">'+(p.discharge||'—')+'</div>';
-      // 危險因子
-      var risks=(d.riskFactors&&d.riskFactors.length)
-        ?d.riskFactors.map(function(r){return '<div style="white-space:nowrap;margin-bottom:2px;"><span class="pill-tag">'+r+'</span></div>';}).join('')
-        :'—';
-      // 傷口狀況
-      var noteHtml=(d.note||'—').replace(/\n/g,'<br>');
-      h+='<tr style="'+rowStyle+'">'
-        +'<td style="padding:8px 6px;vertical-align:top;">'+patInfo+'</td>'
-        +'<td style="padding:8px 6px;vertical-align:top;">'+( p.dx||'—')+'</td>'
-        +'<td style="padding:8px 6px;vertical-align:top;text-align:center;">'+(p.nurse||'—')+'</td>'
-        +'<td style="padding:8px 6px;vertical-align:top;text-align:center;line-height:1.8;">'+dateInfo+'</td>'
-        +'<td style="padding:8px 6px;vertical-align:top;">'+risks+'</td>'
-        +'<td style="padding:8px 6px;vertical-align:top;white-space:normal;">'+noteHtml+'</td>'
-        +'</tr>';
+      var blocks=d.woundBlocks&&d.woundBlocks.length?d.woundBlocks:[d];
+      var rowCount=blocks.length;
+      var allEnded=blocks.every(function(b){return !!(b.endDate&&b.endDate.trim());});
+      blocks.forEach(function(b,bi){
+        var risks=(b.riskFactors&&b.riskFactors.length)
+          ?b.riskFactors.map(function(r){return '<div style="white-space:nowrap;margin-bottom:2px;"><span class="pill-tag">'+r+'</span></div>';}).join('')
+          :'—';
+        var hasEnd=!!(b.endDate&&b.endDate.trim());
+        // rowStyle：有結案日期的筆變灰；否則跟隨baseStyle
+        var rowStyle=hasEnd?'background:#f1f5f9;color:#94a3b8;':baseStyle;
+        var noteHtml=(b.note||'—').replace(/\n/g,'<br>');
+        if(hasEnd)noteHtml+='<div style="color:#dc2626;font-weight:600;margin-top:4px;">'+b.endDate+' 結案</div>';
+        h+='<tr style="'+rowStyle+'">';
+        if(bi===0){
+          // 基本欄只在allEnded或出院時變灰，否則維持白底
+          var patStyle=(allEnded||isDis)?'background:#f1f5f9;color:#94a3b8;':'background:#fff;color:inherit;';
+          h+='<td style="padding:8px 6px;vertical-align:top;'+patStyle+'" rowspan="'+rowCount+'">'+patInfo+'</td>'
+            +'<td style="padding:8px 6px;vertical-align:top;'+patStyle+'" rowspan="'+rowCount+'">'+(p.dx||'—')+'</td>'
+            +'<td style="padding:8px 6px;vertical-align:top;text-align:center;'+patStyle+'" rowspan="'+rowCount+'">'+(p.nurse||'—')+'</td>'
+            +'<td style="padding:8px 6px;vertical-align:top;text-align:center;line-height:1.8;'+patStyle+'" rowspan="'+rowCount+'">'+dateInfo+'</td>';
+        }
+        h+='<td style="padding:8px 6px;vertical-align:top;">'+risks+'</td>'
+          +'<td style="padding:8px 6px;vertical-align:top;white-space:normal;">'+noteHtml+'</td>'
+          +'</tr>';
+      });
     });
     h+='</tbody></table>'
   } else if(field==='dc'){
@@ -4891,29 +5028,33 @@ function exportWoundPrint(){
   h+='<th colspan="17" style="min-width:200px;">A-其他（部位／等級／大小／改善狀況）</th></tr></thead><tbody>';
   patients.filter(function(p){return p.wound;}).forEach(function(p){
     var d=(p.details&&p.details.wound)||{};
-    var risks=d.riskFactors||[];
     var age=calcAge(p.birth);
-    var note=d.note||'';
-    var noteLines=note.split('\n').map(function(l){return l.trim();}).filter(Boolean);
-    var noteDisp=noteLines.length<=1?note:(noteLines[0]+(noteLines.length>1?'<br>→'+noteLines[noteLines.length-1]:''));
-    var v=function(f){return f?'V':'';};
     var toRocMD=function(d){if(!d)return '';var m=d.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);return m?m[2].padStart(2,'0')+'/'+m[3].padStart(2,'0'):d;};
     var mapCg=function(nurse){if(!nurse)return '合約/非';if(nurse.includes('第一'))return '看護/合';if(nurse.includes('外傭'))return '外傭';if(nurse.includes('家屬'))return '家屬';return '合約/非';};
     var pidMasked=String(p.pid||'').replace(/^0+/,'');pidMasked=pidMasked.length<=4?'****':pidMasked.slice(0,pidMasked.length-4)+'****';
-    h+='<tr>';
-    h+='<td class="l">'+esc(p.name)+'<br>'+esc(p.bed)+'<br>'+esc(pidMasked)+'<br>'+esc((p.gender||'')+'/'+(age?age+'歲':''))+'</td>';
-    h+='<td>'+esc(getFormalDx(p.dx||''))+'</td>';
-    h+='<td>'+esc(mapCg(p.nurse))+'</td>';
-    h+='<td class="l">'+toRoc(p.admit)+(p.admit?' 入A1W':'')+(p.discharge?'<br>'+toRoc(p.discharge)+' 出院':'')+'</td>';
-    h+='<td>'+v(d.caseType==='舊案（續上個月）')+'</td><td>'+v(d.caseType==='本月新個案')+'</td>';
-    h+='<td>'+v(d.newSource==='院外帶入')+'</td><td>'+v(d.newSource==='單位內發生')+'</td>';
-    h+='<td>'+(d.newDate?toRocMD(d.newDate):'')+'</td>';
-    h+='<td>'+v(d.vent==='是')+'</td>';
-    h+='<td>'+v(risks.includes('營養不良'))+'</td><td>'+v(risks.includes('活動減少'))+'</td>';
-    h+='<td>'+v(risks.includes('知覺改變'))+'</td><td>'+v(risks.includes('潮濕浸潤'))+'</td>';
-    h+='<td>'+v(risks.includes('慢性病'))+'</td><td>'+v(risks.includes('醫療器材'))+'</td>';
-    h+='<td colspan="17" class="l" style="min-width:200px;">'+noteDisp+'</td>';
-    h+='</tr>';
+    var basicInfo='<td class="l">'+esc(p.name)+'<br>'+esc(p.bed)+'<br>'+esc(pidMasked)+'<br>'+esc((p.gender||'')+'/'+(age?age+'歲':''))+'</td>'
+      +'<td>'+esc(getFormalDx(p.dx||''))+'</td>'
+      +'<td>'+esc(mapCg(p.nurse))+'</td>'
+      +'<td class="l">'+toRoc(p.admit)+(p.admit?' 入A1W':'')+(p.discharge?'<br>'+toRoc(p.discharge)+' 出院':'')+'</td>';
+    var blocks=d.woundBlocks&&d.woundBlocks.length?d.woundBlocks:[d];
+    blocks.forEach(function(b){
+      var risks=b.riskFactors||[];
+      var note=b.note||'';
+      var noteDisp=note.replace(/\n/g,'<br>');
+      if(b.endDate)noteDisp+=(noteDisp?'<br>':'')+'<span style="color:#dc2626;font-weight:600;">'+b.endDate+'結案</span>';
+      var v=function(f){return f?'V':'';};
+      h+='<tr>';
+      h+=basicInfo;
+      h+='<td>'+v(b.caseType==='舊案（續上個月）')+'</td><td>'+v(b.caseType==='本月新個案')+'</td>';
+      h+='<td>'+v(b.newSource==='院外帶入')+'</td><td>'+v(b.newSource==='單位內發生')+'</td>';
+      h+='<td>'+(b.newDate?toRocMD(b.newDate):'')+'</td>';
+      h+='<td>'+v(b.vent==='是')+'</td>';
+      h+='<td>'+v(risks.includes('營養不良'))+'</td><td>'+v(risks.includes('活動減少'))+'</td>';
+      h+='<td>'+v(risks.includes('知覺改變'))+'</td><td>'+v(risks.includes('潮濕浸潤'))+'</td>';
+      h+='<td>'+v(risks.includes('慢性病'))+'</td><td>'+v(risks.includes('醫療器材'))+'</td>';
+      h+='<td colspan="17" class="l" style="min-width:200px;">'+noteDisp+'</td>';
+      h+='</tr>';
+    });
   });
   h+='</tbody></table>';
   var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'</style></head><body>'+h+'<script>window.onload=function(){window.print();}<\/script></body></html>';
@@ -5136,34 +5277,37 @@ function renderWoundReport(){
   if(!list.length) h+='<tr><td colspan="17" style="text-align:center;padding:20px;color:var(--text-muted);">目前無壓瘡病人</td></tr>';
   list.forEach(function(p,ri){
     var d=p.details&&p.details.wound||{};
-    var risks=d.riskFactors||[];
     var age=calcAge(p.birth);
-    var note=d.note||'';
-    var noteLines=note.split('\n').map(function(l){return l.trim();}).filter(Boolean);
-    var noteDisp=noteLines.length<=1?note:(noteLines[0]+(noteLines.length>1?'\n→'+noteLines[noteLines.length-1]:''));
-    var v=function(f){return f?'✓':'';};
-    var bg=ri%2===0?'#fff':'#f0f9ff';
     var pid=String(p.pid||'');
     var pidMasked=pid.length<=4?pid:pid.slice(0,pid.length-4)+'****';
-    h+='<tr style="background:'+bg+';vertical-align:top;">';
-    h+='<td style="padding:6px;border:1px solid #cbd5e1;min-width:100px;">'+esc(p.name)+'<br>'+esc(p.bed)+'<br>'+esc(pidMasked)+'<br>'+esc((p.gender||'')+'/'+(age?age+'歲':''))+'</td>';
-    h+='<td style="padding:6px;border:1px solid #cbd5e1;">'+esc(p.dx||'')+'</td>';
-    h+='<td style="padding:6px;border:1px solid #cbd5e1;">'+esc(p.nurse||'')+'</td>';
-    h+='<td style="padding:6px;border:1px solid #cbd5e1;">'+esc(p.admit||'')+(p.discharge?'<br>出院:'+esc(p.discharge):'')+'</td>';
-    h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(d.caseType==='舊案（續上個月）')+'</td>';
-    h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(d.caseType==='本月新個案')+'</td>';
-    h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(d.newSource==='院外帶入')+'</td>';
-    h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(d.newSource==='單位內發生')+'</td>';
-    h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+esc(d.newDate||'')+'</td>';
-    h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(d.vent==='是')+'</td>';
-    h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(risks.includes('營養不良'))+'</td>';
-    h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(risks.includes('活動減少'))+'</td>';
-    h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(risks.includes('知覺改變'))+'</td>';
-    h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(risks.includes('潮濕浸潤'))+'</td>';
-    h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(risks.includes('慢性病'))+'</td>';
-    h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(risks.includes('醫療器材'))+'</td>';
-    h+='<td style="padding:6px;border:1px solid #cbd5e1;min-width:200px;white-space:pre-wrap;">'+esc(noteDisp)+'</td>';
-    h+='</tr>';
+    var v=function(f){return f?'✓':'';};
+    var blocks=d.woundBlocks&&d.woundBlocks.length?d.woundBlocks:[d];
+    var basicHtml='<td style="padding:6px;border:1px solid #cbd5e1;min-width:100px;">'+esc(p.name)+'<br>'+esc(p.bed)+'<br>'+esc(pidMasked)+'<br>'+esc((p.gender||'')+'/'+(age?age+'歲':''))+'</td>'
+      +'<td style="padding:6px;border:1px solid #cbd5e1;">'+esc(p.dx||'')+'</td>'
+      +'<td style="padding:6px;border:1px solid #cbd5e1;">'+esc(p.nurse||'')+'</td>'
+      +'<td style="padding:6px;border:1px solid #cbd5e1;">'+esc(p.admit||'')+(p.discharge?'<br>出院:'+esc(p.discharge):'')+'</td>';
+    blocks.forEach(function(b,bi){
+      var risks=b.riskFactors||[];
+      var note=b.note||'';
+      var bg=ri%2===0?'#fff':'#f0f9ff';
+      h+='<tr style="background:'+bg+';vertical-align:top;">';
+      h+=basicHtml;
+      h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(b.caseType==='舊案（續上個月）')+'</td>';
+      h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(b.caseType==='本月新個案')+'</td>';
+      h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(b.newSource==='院外帶入')+'</td>';
+      h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(b.newSource==='單位內發生')+'</td>';
+      h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+esc(b.newDate||'')+'</td>';
+      h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(b.vent==='是')+'</td>';
+      h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(risks.includes('營養不良'))+'</td>';
+      h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(risks.includes('活動減少'))+'</td>';
+      h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(risks.includes('知覺改變'))+'</td>';
+      h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(risks.includes('潮濕浸潤'))+'</td>';
+      h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(risks.includes('慢性病'))+'</td>';
+      h+='<td style="text-align:center;border:1px solid #cbd5e1;">'+v(risks.includes('醫療器材'))+'</td>';
+      var noteDisp=note+(b.endDate?'\n'+b.endDate+'結案':'');
+      h+='<td style="padding:6px;border:1px solid #cbd5e1;min-width:200px;white-space:pre-wrap;text-align:left;">'+esc(noteDisp)+'</td>';
+      h+='</tr>';
+    });
   });
   h+='</tbody></table></div>';
   document.getElementById('stats-content').innerHTML=h;
@@ -5261,8 +5405,7 @@ function exportWoundDocx(){
       var age=calcAge(p.birth);
       var vf=function(f){return f?'V':'';};
       var note=d.note||'';
-      var noteLines=note.split('\n').map(function(l){return l.trim();}).filter(Boolean);
-      var noteDisp=noteLines.length<=1?note:(noteLines[0]+'\n→'+noteLines[noteLines.length-1]);
+      var noteDisp=note; // 直接使用完整傷口狀況內容
       return new docx.TableRow({
         height:{value:1200,rule:docx.HeightRule.ATLEAST},
         children:[
