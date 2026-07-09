@@ -1286,7 +1286,7 @@ function renderMorningTab(tab){
           +'<td><div class="morning-bed">'+p.bed+'</div></td>'
           +'<td><div class="morning-name">'+p.name+'</div></td>'
           +'<td>'+(p.nurse||'—')+'</td>'
-          +'<td colspan="4">—</td></tr>';
+          +'<td>—</td><td>—</td><td>—</td><td>—</td></tr>';
         return;
       }
       blocks.forEach(function(b,i){
@@ -1363,20 +1363,24 @@ function renderMorningTab(tab){
           +'<td><div class="morning-bed">'+p.bed+'</div></td>'
           +'<td><div class="morning-name">'+p.name+'</div></td>'
           +'<td>'+(p.nurse||'—')+'</td>'
-          +'<td colspan="2">—</td></tr>';
+          +'<td style="white-space:normal;font-size:12px;text-align:left;">—</td>'
+          +'<td style="text-align:center;">—</td></tr>';
         return;
       }
       var allEnded=blocks.every(function(b){return !!(b.endDate&&b.endDate.trim());});
-      var baseBg=rowBg(p,ri);
+      var isDis=!!p.discharge;
+      var endedStyle='background:#f1f5f9;color:#94a3b8;';
+      // 出院病人跟結案記錄統一用同一組灰色，避免色差
+      var baseBg=isDis?endedStyle:(ri%2===0?'background:#fff;':'background:#f0fdf4;');
       blocks.forEach(function(b,i){
         var hasEnd=!!(b.endDate&&b.endDate.trim());
         // 非全部結案時，tr 不設灰底，只讓傷口欄自己設色
-        var trStyle=allEnded?'background:#f1f5f9;color:#94a3b8;':baseBg;
-        var cellGray=(!allEnded&&hasEnd)?'background:#f1f5f9;color:#94a3b8;':'';
+        var trStyle=(allEnded||isDis)?endedStyle:baseBg;
+        var cellGray=(!(allEnded||isDis)&&hasEnd)?endedStyle:'';
         h+='<tr style="'+trStyle+'">';
         if(i===0){
-          // 基本欄：allEnded時跟著tr灰，否則白底
-          var patCellStyle=allEnded?'':'background:#fff;color:inherit;';
+          // 基本欄：allEnded或出院時跟著tr灰，否則白底
+          var patCellStyle=(allEnded||isDis)?'':'background:#fff;color:inherit;';
           h+='<td rowspan="'+blocks.length+'" style="'+patCellStyle+'"><div class="morning-bed">'+p.bed+'</div></td>'
             +'<td rowspan="'+blocks.length+'" style="'+patCellStyle+'"><div class="morning-name">'+p.name+'</div></td>'
             +'<td rowspan="'+blocks.length+'" style="'+patCellStyle+'">'+(p.nurse||'—')+'</td>';
@@ -1427,7 +1431,7 @@ function showModule(mod){
   document.getElementById('module-stats').style.display=mod==='stats'?'block':'none';
   document.getElementById('module-admin').style.display=mod==='admin'?'block':'none';
   document.getElementById('back-to-home-btn').style.display='inline-flex';
-  if(mod==='form'){renderA();renderAStats();}
+  if(mod==='form'){renderA();renderAStats();setTimeout(updateAHeaderTop,50);}
   if(mod==='report'){showMorningTab('fall');}
   if(mod==='stats'){
     document.getElementById('stats-home').style.display='block';
