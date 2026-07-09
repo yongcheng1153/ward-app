@@ -2137,6 +2137,23 @@ function _readRestBlocks(p){
   if(blocks.length>0)p.details[detailField].restBlocks=blocks;
 }
 
+function mdToIso(val){
+  // 將 "MM/DD" 或舊格式 "YYYY-MM-DD"/"YYYY/MM/DD" 轉為 <input type="date"> 需要的 "YYYY-MM-DD"
+  if(!val)return '';
+  var ym=(typeof ls==='function'?ls(KEY_MONTH):'')||'';
+  var yr=ym?ym.split('-')[0]:String(new Date().getFullYear());
+  var m=val.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+  if(m) return m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0');
+  m=val.match(/^(\d{1,2})[-\/](\d{1,2})$/);
+  if(m) return yr+'-'+m[1].padStart(2,'0')+'-'+m[2].padStart(2,'0');
+  return '';
+}
+function isoToMd(val){
+  // 將 <input type="date"> 的 "YYYY-MM-DD" 轉回系統儲存用的 "MM/DD"
+  if(!val)return '';
+  var p=val.split('-');
+  return p.length===3?(p[1]+'/'+p[2]):'';
+}
 function buildWoundForm(d,p){
   var blocks=d.woundBlocks;
   // 相容舊資料：如果沒有woundBlocks但有舊格式，自動轉換
@@ -2188,12 +2205,11 @@ function buildWoundForm(d,p){
         +'<div class="pill'+(b.newSource==='院外帶入'?' on':'')+'" onclick="selectOnePill(this,\'wound_'+i+'_newSource\')">院外帶入</div>'
         +'<div class="pill'+(b.newSource==='單位內發生'?' on':'')+'" onclick="selectOnePill(this,\'wound_'+i+'_newSource\')">單位內發生</div>'
         +'</div></div>';
-      var dv=b.newDate||'';
-      if(dv.match(/^\d{4}[-\/]\d{1,2}[-\/]\d{1,2}$/)){var dp=dv.split(/[-\/]/);dv=dp[1].padStart(2,'0')+'/'+dp[2].padStart(2,'0');}
+      var dv=mdToIso(b.newDate||'');
       html+='<div class="pf-section" style="'+(dateWarn?wS:'')+'">'
         +'<div class="pf-section-title">新案發生日期'+(dateWarn?' ⚠️':'')+'</div>'
-        +'<input type="text" id="wound_'+i+'_newDate" value="'+dv+'" placeholder="MM/DD" maxlength="5" oninput="this.value=this.value.replace(/[^0-9\\/]/g,\'\')" '
-        +'style="padding:8px 12px;border:1px solid '+(dateWarn?'#f59e0b':'var(--border)')+';border-radius:8px;font-size:14px;outline:none;width:120px;"></div>';
+        +'<input type="date" id="wound_'+i+'_newDate" value="'+dv+'" '
+        +'style="padding:8px 12px;border:1px solid '+(dateWarn?'#f59e0b':'var(--border)')+';border-radius:8px;font-size:14px;outline:none;width:170px;"></div>';
     }
 
     // 呼吸器
@@ -2216,10 +2232,11 @@ function buildWoundForm(d,p){
       +'<textarea class="pf-textarea" id="wound_'+i+'_note" placeholder="例：薦骨 2x3cm stage2，06/01發現..." style="min-height:144px;'+noteWarnS+'">'+(b.note||'')+'</textarea></div>';
 
     // 結束日期
-    html+='<div class="pf-section"><div class="pf-section-title">結束日期（結案填入，格式 MM/DD）</div>'
-      +'<input type="text" id="wound_'+i+'_endDate" value="'+(b.endDate||'')+'" placeholder="MM/DD（未結案留空）" maxlength="5" '
-      +'oninput="this.value=this.value.replace(/[^0-9\\/]/g,\'\')" '
-      +'style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;outline:none;width:160px;"></div>';
+    html+='<div class="pf-section"><div class="pf-section-title">結束日期（結案填入，未結案請保持空白）</div>'
+      +'<input type="date" id="wound_'+i+'_endDate" value="'+mdToIso(b.endDate||'')+'" '
+      +'style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;outline:none;width:180px;">'
+      +(b.endDate?'<button type="button" onclick="document.getElementById(\'wound_'+i+'_endDate\').value=\'\';" style="margin-left:8px;background:#f1f5f9;border:1px solid var(--border);color:#64748b;cursor:pointer;font-size:13px;padding:8px 10px;border-radius:8px;">清除（未結案）</button>':'')
+      +'</div>';
 
     html+='</div>';
     return html;
@@ -2235,16 +2252,13 @@ function selectWoundCase(el,val,idx){
   document.querySelectorAll('#'+grpId+' .pill').forEach(function(p){p.classList.remove('on');});
   el.classList.add('on');
   var p=patients.find(function(x){return String(x.id).trim()===String(detailPatientId).trim();});
-  if(!p||!p.details||!p.details[detailField])return;
+  if(!p)return;
+  if(!p.details)p.details={};
+  if(!p.details[detailField])p.details[detailField]={};
+  _readWoundBlocks(p); // 從畫面重新讀取所有筆記錄（含病人第一次填寫、woundBlocks 尚未建立的情況）
   var d=p.details[detailField];
-  if(!d.woundBlocks)return;
-  var b=d.woundBlocks[idx];if(!b)return;
-  // 讀取當前block其他欄位
+  var b=d.woundBlocks&&d.woundBlocks[idx];if(!b)return;
   b.caseType=val;
-  b.vent=(getSelectedPills('wound_'+idx+'_vent')[0])||'否';
-  b.riskFactors=getSelectedPills('wound_'+idx+'_risks');
-  var noteEl=document.getElementById('wound_'+idx+'_note');if(noteEl)b.note=noteEl.value;
-  var endEl=document.getElementById('wound_'+idx+'_endDate');if(endEl)b.endDate=endEl.value;
   if(val==='舊案（續上個月）'){b.newSource='';b.newDate='';}
   document.getElementById('panelBody').innerHTML=buildWoundForm(d,p);
 }
@@ -2252,7 +2266,6 @@ function _readWoundBlocks(p){
   if(!p.details[detailField])p.details[detailField]={};
   var d=p.details[detailField];
   var blocks=d.woundBlocks||[];
-  if(!blocks.length)return;
   var i=0;
   while(document.getElementById('woundBlock_'+i)){
     if(!blocks[i])blocks[i]={};
@@ -2260,12 +2273,12 @@ function _readWoundBlocks(p){
     b.caseType=(getSelectedPills('wound_'+i+'_caseType')[0])||'';
     if(b.caseType==='本月新個案'){
       b.newSource=(getSelectedPills('wound_'+i+'_newSource')[0])||'';
-      var ndEl=document.getElementById('wound_'+i+'_newDate');if(ndEl)b.newDate=ndEl.value;
+      var ndEl=document.getElementById('wound_'+i+'_newDate');if(ndEl)b.newDate=isoToMd(ndEl.value);
     }
     b.vent=(getSelectedPills('wound_'+i+'_vent')[0])||'否';
     b.riskFactors=getSelectedPills('wound_'+i+'_risks');
     var noteEl=document.getElementById('wound_'+i+'_note');if(noteEl)b.note=noteEl.value;
-    var endEl=document.getElementById('wound_'+i+'_endDate');if(endEl)b.endDate=endEl.value;
+    var endEl=document.getElementById('wound_'+i+'_endDate');if(endEl)b.endDate=isoToMd(endEl.value);
     i++;
   }
   d.woundBlocks=blocks.slice(0,i);
