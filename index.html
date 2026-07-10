@@ -956,7 +956,7 @@ function openNurseList(){
   nurseListData=getNurseListData();
   // Sync from patients: for each patient, ensure there's at least one row
   patients.forEach(function(p){
-    if(p.nurse==='家屬')return; // 家屬不加入看護一覽表
+    if(p.nurse==='家屬'||!p.nurse)return; // 家屬或空白不加入看護一覽表
     var existing=nurseListData.filter(function(r){return r.patientId===p.id;});
     if(!existing.length){
       // Create default row from patient
@@ -1777,7 +1777,9 @@ function renderA(){
       +(function(){
         var docFull=p.doctor||'';
         var docName=docFull.includes('-')?docFull.split('-').slice(1).join('-'):docFull;
-        return '<td class="cell-editable" onclick="openDoctorPopupA(event,\''+p.id+'\')">'
+        var isUnassigned=docFull==='未分科';
+        return '<td class="cell-editable" onclick="openDoctorPopupA(event,\''+p.id+'\')" '
+          +(isUnassigned?'style="background:#fef3c7!important;"':'')+'>'
           +(docName||'<span class="cell-placeholder">點擊選擇</span>')+'</td>';
       })()
       +(function(){
@@ -2706,12 +2708,12 @@ function saveCellPopup(){
       foreignerName=fInp?fInp.value.trim():'';
       if(!foreignerName){showAlert('⚠️ 請填入外傭姓名');return;}
     }
-    // 家屬不加入看護一覽表
-    var isFamily=newNurse==='家屬';
+    // 家屬或空白不加入看護一覽表
+    var skipList=(newNurse==='家屬'||newNurse==='');
     p.nurseExtraName=foreignerName; // 儲存外傭姓名
     var isChange=!!(oldNurse&&newNurse&&oldNurse!==newNurse);
     p.nurseExtra=newExtra;
-    if(!isFamily){
+    if(!skipList){
       // 一覽表中nurseName：外傭顯示外傭姓名，其他顯示newNurse
       var nurseListDisplayName=foreignerName||newNurse;
       nurseListData=getNurseListData();
@@ -2754,7 +2756,7 @@ function saveCellPopup(){
       }
       saveNurseListData();
     } else {
-      // 家屬：移除其在一覽表中的記錄
+      // 家屬或空白：移除其在一覽表中的記錄
       nurseListData=getNurseListData();
       nurseListData=nurseListData.filter(function(r){return r.patientId!==p.id;});
       saveNurseListData();
