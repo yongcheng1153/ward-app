@@ -176,9 +176,9 @@ input:focus,select:focus{border-color:var(--primary);}
 .b-bed-label{font-weight:700;color:var(--primary);font-size:13px;}
 .b-select{width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;outline:none;font-family:inherit;background:#fff;}
 .b-select:focus{border-color:var(--primary);}
-.b-tube-btn{width:100%;padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:11px;cursor:pointer;background:#fff;text-align:left;transition:all .15s;}
+.b-tube-btn{width:100%;padding:4px 8px;border:1px solid #93c5fd;border-radius:4px;font-size:11px;cursor:pointer;background:#dbeafe;color:#1d4ed8;font-weight:600;text-align:left;transition:all .15s;}
 .b-tube-btn:hover{border-color:var(--primary);background:var(--primary-light);}
-.b-tube-btn.has-tube{background:#dbeafe;border-color:#93c5fd;color:#1d4ed8;font-weight:600;}
+.b-tube-btn.has-tube{background:#fff;border-color:var(--border);color:inherit;font-weight:400;}
 .b-check{width:20px;height:20px;cursor:pointer;}
 /* tube popup */
 .tube-popup-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;}
@@ -1737,9 +1737,10 @@ function renderA(){
     const extBed=p.dischargeExt==='外轉'&&p.dischargeExtBed?'<div style="font-size:10px;color:#dc2626;font-weight:600;margin-top:1px;">外轉→'+p.dischargeExtBed+'</div>':'';
     return '<td style="min-width:90px;"><div class="bed-main">'+p.bed+'</div>'+prev+extBed+'</td>';
   }
-  function editTd(p,field,display){
+  function editTd(p,field,display,warnEmpty){
     const val=display||'<span class="cell-placeholder">點擊編輯</span>';
-    return '<td class="cell-editable" onclick="openCellPopup(event,\''+p.id+'\',\''+field+'\')">'+val+'</td>';
+    const isEmptyWarn=warnEmpty&&!display;
+    return '<td class="cell-editable" '+(isEmptyWarn?'style="background:#fef3c7!important;"':'')+' onclick="openCellPopup(event,\''+p.id+'\',\''+field+'\')">'+val+'</td>';
   }
   function dischargeTd(p){
     let txt=p.discharge||'';
@@ -1770,14 +1771,14 @@ function renderA(){
       +'<td>'+(p.pid||'—')+'</td>'
       +'<td style="font-weight:500;min-width:60px;">'+p.name+'</td>'
       +'<td style="font-size:12px;min-width:90px;">'+(p.admit||'—')+'</td>'
-      +editTd(p,'admit_a1',p.admit_a1||'')
+      +editTd(p,'admit_a1',p.admit_a1||'',true)
       +'<td>'+gTag+'</td>'
-      +editTd(p,'birth',p.birth?p.birth+'年':'')
-      +editTd(p,'dx',p.dx)
+      +editTd(p,'birth',p.birth?p.birth+'年':'',true)
+      +editTd(p,'dx',p.dx,true)
       +(function(){
         var docFull=p.doctor||'';
         var docName=docFull.includes('-')?docFull.split('-').slice(1).join('-'):docFull;
-        var isUnassigned=docFull==='未分科';
+        var isUnassigned=docFull==='未分科'||!docFull;
         return '<td class="cell-editable" onclick="openDoctorPopupA(event,\''+p.id+'\')" '
           +(isUnassigned?'style="background:#fef3c7!important;"':'')+'>'
           +(docName||'<span class="cell-placeholder">點擊選擇</span>')+'</td>';
@@ -1798,7 +1799,8 @@ function renderA(){
         var from=p.fromPlace||'';
         var fromNote=p.fromPlaceNote||'';
         var label=from==='家'?'家':(fromNote||from||'');
-        return '<td class="cell-editable" onclick="openFromPlacePopup(event,\''+p.id+'\')">'
+        return '<td class="cell-editable" onclick="openFromPlacePopup(event,\''+p.id+'\')" '
+          +(!label?'style="background:#fef3c7!important;"':'')+'>'
           +(label||'<span class="cell-placeholder">點擊選擇</span>')+'</td>';
       })()
       +checkCell(p,'fall')
@@ -3913,8 +3915,10 @@ function calcDailyStats(){
     var cgs=(d.caregivers||[]).concat(d.caregiverCustom?[d.caregiverCustom]:[]);
     cgs.forEach(function(c){
       if(!c||c==='家屬'||c==='無')return;
-      if(cgNamesSeen.has(c))return; // 同名字只算一次
-      cgNamesSeen.add(c);
+      if(c!=='1對1'){
+        if(cgNamesSeen.has(c))return; // 同名字只算一次（1對1除外，每筆都是不同人）
+        cgNamesSeen.add(c);
+      }
       if(c==='外傭')cgForeign++;
       else cgLocal++;
     });
@@ -4003,7 +4007,7 @@ function initBDaySelector(){
   var year=parseInt(parts[0]),month=parseInt(parts[1]);
   var days=new Date(year,month,0).getDate();
   var opts='<option value="">選日期</option>';
-  for(var d=1;d<=days;d++) opts+='<option value="'+d+'">'+d+'日</option>';
+  for(var d=1;d<=days;d++) opts+='<option value="'+d+'">'+d+'號</option>';
   sel.innerHTML=opts;
 }
 
@@ -4013,21 +4017,27 @@ function doTransfer(){
   var day=dayEl?dayEl.value:'';
   if(!day){alert('請先選擇轉移日期');return;}
 
-  bLog=getBLog();
-  if(bLog[day]){
-    showConfirm('第 '+day+' 日已有資料，是否覆蓋？', function(ok){
-      if(!ok)return;
+  var now=new Date();
+  var weekNames=['日','一','二','三','四','五','六'];
+  var todayStr=(now.getMonth()+1)+'/'+now.getDate()+' 星期'+weekNames[now.getDay()];
+  showConfirm('今日是 '+todayStr+'，你確定要轉移資料到 '+day+' 號嗎？', function(ok){
+    if(!ok)return;
+    bLog=getBLog();
+    if(bLog[day]){
+      showConfirm(day+' 號已有資料，是否覆蓋？', function(ok2){
+        if(!ok2)return;
+        performTransfer(day);
+      });
+      // Override button labels
+      setTimeout(function(){
+        var btns=document.querySelectorAll('#confirmOverlay button');
+        if(btns[0])btns[0].textContent='我考慮一下';
+        if(btns[1])btns[1].textContent='我心意已決';
+      },10);
+    } else {
       performTransfer(day);
-    });
-    // Override button labels
-    setTimeout(function(){
-      var btns=document.querySelectorAll('#confirmOverlay button');
-      if(btns[0])btns[0].textContent='我考慮一下';
-      if(btns[1])btns[1].textContent='我心意已決';
-    },10);
-  } else {
-    performTransfer(day);
-  }
+    }
+  });
 }
 
 function performTransfer(day){
@@ -4042,7 +4052,7 @@ function performTransfer(day){
   saveBLog();
   B_BEDS.forEach(function(b){if(bData[b.id])bData[b.id].isNew=false;});
   saveBData(); renderBTable();
-  showConfirm('第 '+day+' 日資料已轉移完成！',function(){});
+  showConfirm(day+' 號資料已轉移完成！',function(){});
 }
 
 /* ── RENDER TRANSFER LOGS ── */
