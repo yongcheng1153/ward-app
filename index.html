@@ -3915,8 +3915,8 @@ function calcDailyStats(){
     var cgs=(d.caregivers||[]).concat(d.caregiverCustom?[d.caregiverCustom]:[]);
     cgs.forEach(function(c){
       if(!c||c==='家屬'||c==='無')return;
-      if(c!=='1對1'){
-        if(cgNamesSeen.has(c))return; // 同名字只算一次（1對1除外，每筆都是不同人）
+      if(c!=='1對1'&&c!=='外傭'){
+        if(cgNamesSeen.has(c))return; // 同名字只算一次（1對1、外傭除外，每筆都是不同人）
         cgNamesSeen.add(c);
       }
       if(c==='外傭')cgForeign++;
