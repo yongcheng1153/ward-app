@@ -3451,7 +3451,7 @@ function renderBTable(){
         +'<button class="b-tube-btn'+(hasTube?' has-tube':'')+warnCls+'" data-b-action="tube" data-b-bed="'+b.id+'">'+tubeLabel+'</button>'
       +'</td>'
       +'<td>'
-        +'<button class="b-tube-btn'+(d.bedType?' has-tube':'')+warnCls+'" data-b-action="bedType" data-b-bed="'+b.id+'">'+(d.bedType||'點擊選擇')+'</button>'
+        +'<button class="b-tube-btn'+((d.bedType&&hasAnyContent)?' has-tube':'')+warnCls+'" data-b-action="bedType" data-b-bed="'+b.id+'">'+(d.bedType||'點擊選擇')+'</button>'
       +'</td>'
       +'<td>'
         +'<button class="b-tube-btn'+(d.source?' has-tube':'')+warnCls+'" data-b-action="source" data-b-bed="'+b.id+'">'+(d.source||'點擊選擇')+'</button>'
