@@ -176,9 +176,10 @@ input:focus,select:focus{border-color:var(--primary);}
 .b-bed-label{font-weight:700;color:var(--primary);font-size:13px;}
 .b-select{width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;outline:none;font-family:inherit;background:#fff;}
 .b-select:focus{border-color:var(--primary);}
-.b-tube-btn{width:100%;padding:4px 8px;border:1px solid #93c5fd;border-radius:4px;font-size:11px;cursor:pointer;background:#dbeafe;color:#1d4ed8;font-weight:600;text-align:left;transition:all .15s;}
+.b-tube-btn{width:100%;padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:11px;cursor:pointer;background:#fff;color:#1e293b;font-weight:400;text-align:left;transition:all .15s;}
 .b-tube-btn:hover{border-color:var(--primary);background:var(--primary-light);}
-.b-tube-btn.has-tube{background:#fff;border-color:var(--border);color:inherit;font-weight:400;}
+.b-tube-btn.has-tube{background:#bfdbfe;border-color:#93c5fd;color:#1d4ed8;font-weight:700;}
+.b-tube-btn.b-btn-warn.has-tube{background:#fecaca;border-color:#ef4444;color:#991b1b;font-weight:700;}
 .b-check{width:20px;height:20px;cursor:pointer;}
 /* tube popup */
 .tube-popup-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;}
@@ -3438,30 +3439,31 @@ function renderBTable(){
       (hasAnyContent?'background:#bfdbfe;':'background:#fff;');
 
     var colIdx=0;
+    var warnCls=missingFields?' b-btn-warn':'';
     return '<tr style="'+rowBg+'">'
       +'<td><div class="b-bed-label">'+b.label+'</div></td>'
       +'<td style="'+(d.isNew?(missingFields?'background:#ef4444;':'background:#dbeafe;'):'')+'">'
         +'<input type="checkbox" class="b-check" data-b-bed="'+b.id+'" data-b-field="isNew"'+(d.isNew?' checked':'')+'>'
         +(d.isNew&&missingFields?'<div style="font-size:9px;color:#fff;font-weight:700;background:#dc2626;border-radius:3px;padding:1px 3px;margin-top:2px;">⚠️ 請填寫</div>':'')
       +'</td>'
-      +'<td><input type="date" value="'+(d.admitDate||'')+'" data-b-bed="'+b.id+'" data-b-field="admitDate" onchange="saveBInlineField(this)" style="width:100%;padding:5px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;outline:none;box-sizing:border-box;"></td>'
+      +'<td><input type="date" value="'+(d.admitDate||'')+'" data-b-bed="'+b.id+'" data-b-field="admitDate" onchange="saveBInlineField(this)" style="width:100%;padding:5px 6px;border:1px solid '+(d.admitDate?(missingFields?'#ef4444':'#93c5fd'):'var(--border)')+';border-radius:6px;font-size:12px;outline:none;box-sizing:border-box;background:'+(d.admitDate?(missingFields?'#fecaca':'#bfdbfe'):'#fff')+';color:'+(d.admitDate?(missingFields?'#991b1b':'#1d4ed8'):'#1e293b')+';font-weight:'+(d.admitDate?'700':'400')+';"></td>'
       +'<td style="min-width:160px;">'
-        +'<button class="b-tube-btn'+(hasTube?' has-tube':'')+'" data-b-action="tube" data-b-bed="'+b.id+'">'+tubeLabel+'</button>'
+        +'<button class="b-tube-btn'+(hasTube?' has-tube':'')+warnCls+'" data-b-action="tube" data-b-bed="'+b.id+'">'+tubeLabel+'</button>'
       +'</td>'
       +'<td>'
-        +'<button class="b-tube-btn'+(d.bedType?' has-tube':'')+'" data-b-action="bedType" data-b-bed="'+b.id+'">'+(d.bedType||'點擊選擇')+'</button>'
+        +'<button class="b-tube-btn'+(d.bedType?' has-tube':'')+warnCls+'" data-b-action="bedType" data-b-bed="'+b.id+'">'+(d.bedType||'點擊選擇')+'</button>'
       +'</td>'
       +'<td>'
-        +'<button class="b-tube-btn'+(d.source?' has-tube':'')+'" data-b-action="source" data-b-bed="'+b.id+'">'+(d.source||'點擊選擇')+'</button>'
+        +'<button class="b-tube-btn'+(d.source?' has-tube':'')+warnCls+'" data-b-action="source" data-b-bed="'+b.id+'">'+(d.source||'點擊選擇')+'</button>'
       +'</td>'
       +'<td style="min-width:110px;">'
-        +'<button class="b-tube-btn'+(cgFull.length?' has-tube':'')+'" data-b-action="caregiver" data-b-bed="'+b.id+'">'+cgLabel+'</button>'
+        +'<button class="b-tube-btn'+(cgFull.length?' has-tube':'')+warnCls+'" data-b-action="caregiver" data-b-bed="'+b.id+'">'+cgLabel+'</button>'
       +'</td>'
       +'<td>'
-        +'<button class="b-tube-btn'+(deptVal?' has-tube':'')+'" data-b-action="dept" data-b-bed="'+b.id+'" style="'+deptColor+'">'+(deptVal||(deptWarn?'⚠️ 缺醫師':'點擊選擇'))+'</button>'
+        +'<button class="b-tube-btn'+(deptVal?' has-tube':'')+warnCls+'" data-b-action="dept" data-b-bed="'+b.id+'" style="'+deptColor+'">'+(deptVal||(deptWarn?'⚠️ 缺醫師':'點擊選擇'))+'</button>'
       +'</td>'
       +'<td style="min-width:110px;">'
-        +'<button class="b-tube-btn'+(d.placement||d.placementNote?' has-tube':'')+'" data-b-action="placement" data-b-bed="'+b.id+'">'+(d.placement||(d.placementNote?d.placementNote:'點擊選擇'))+'</button>'
+        +'<button class="b-tube-btn'+(d.placement||d.placementNote?' has-tube':'')+warnCls+'" data-b-action="placement" data-b-bed="'+b.id+'">'+(d.placement||(d.placementNote?d.placementNote:'點擊選擇'))+'</button>'
       +'</td>'
 
       +'<td style="white-space:nowrap;">'
