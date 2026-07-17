@@ -410,7 +410,10 @@ pullAll().then(()=>{
   </div>
   <div class="content" id="pane-a" style="padding:0;">
     <div style="position:sticky;top:100px;z-index:88;background:var(--bg);padding:12px 20px 8px;border-bottom:1px solid var(--border);box-shadow:0 2px 6px rgba(0,0,0,.06);">
-      <div class="stats-row" id="aStats" style="margin-bottom:8px;"></div>
+      <div style="display:flex;gap:10px;align-items:stretch;margin-bottom:8px;flex-wrap:wrap;">
+        <div class="stats-row" id="aStats" style="margin-bottom:0;flex:0 1 auto;"></div>
+        <div id="aAnnouncementBoard" style="flex:1;min-width:220px;"></div>
+      </div>
       <div class="toolbar" style="margin-bottom:0;">
         <button class="btn btn-primary" onclick="openAddPatient()">＋ 新增病人</button>
         <button class="btn" onclick="openNurseList()" style="background:#f0fdf4;border-color:#86efac;color:#15803d;font-weight:600;">👩‍⚕️ 看護一覽表</button>
@@ -449,15 +452,22 @@ pullAll().then(()=>{
   </div>
   <div id="pane-b" style="display:none;">
     <!-- B GROUP SUB TABS -->
-    <div style="background:#fff;border-bottom:1px solid var(--border);padding:0 20px;display:flex;gap:4px;position:sticky;top:104px;z-index:89;box-shadow:0 1px 3px rgba(0,0,0,.06);">
-      <button class="b-tab-btn active" onclick="showBTab('overview')" id="btab-overview">📋 病人概況</button>
-      <button class="b-tab-btn" onclick="showBTab('daily')" id="btab-daily">📊 當日統計</button>
-      <button class="b-tab-btn" onclick="showBTab('tube')" id="btab-tube">🔬 管路</button>
-      <button class="b-tab-btn" onclick="showBTab('ncku')" id="btab-ncku">🏥 成大病人</button>
-      <button class="b-tab-btn" onclick="showBTab('caregiver')" id="btab-caregiver">👤 照服員</button>
-      <button class="b-tab-btn" onclick="showBTab('dept')" id="btab-dept">🏷️ 科別人數</button>
-      <button class="b-tab-btn" onclick="showBTab('nursing')" id="btab-nursing">⏱️ 護理時數</button>
-      <button class="b-tab-btn" onclick="showBTab('pslot')" id="btab-pslot">📁 P槽照顧者名單</button>
+    <div style="display:flex;gap:12px;align-items:stretch;background:#fff;border-bottom:1px solid var(--border);padding:6px 20px;position:sticky;top:104px;z-index:89;box-shadow:0 1px 3px rgba(0,0,0,.06);flex-wrap:wrap;">
+      <div style="display:flex;flex-direction:column;gap:2px;flex:0 0 auto;">
+        <div style="display:flex;gap:4px;">
+          <button class="b-tab-btn active" onclick="showBTab('overview')" id="btab-overview">📋 病人概況</button>
+          <button class="b-tab-btn" onclick="showBTab('daily')" id="btab-daily">📊 當日統計</button>
+        </div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;">
+          <button class="b-tab-btn" onclick="showBTab('tube')" id="btab-tube">🔬 管路</button>
+          <button class="b-tab-btn" onclick="showBTab('ncku')" id="btab-ncku">🏥 成大病人</button>
+          <button class="b-tab-btn" onclick="showBTab('caregiver')" id="btab-caregiver">👤 照服員</button>
+          <button class="b-tab-btn" onclick="showBTab('dept')" id="btab-dept">🏷️ 科別人數</button>
+          <button class="b-tab-btn" onclick="showBTab('nursing')" id="btab-nursing">⏱️ 護理時數</button>
+          <button class="b-tab-btn" onclick="showBTab('pslot')" id="btab-pslot">📁 P槽照顧者名單</button>
+        </div>
+      </div>
+      <div id="bAnnouncementBoard" style="flex:1;min-width:220px;"></div>
     </div>
 
     <!-- OVERVIEW -->
@@ -678,6 +688,29 @@ pullAll().then(()=>{
           </div>
         </div><!-- end listManagerBody -->
       </div><!-- end listManager -->
+      <div class="accordion-item">
+        <button class="accordion-header" onclick="toggleAccordion(11)">
+          <span>📢 各組公告</span>
+          <span class="accordion-arrow" id="accArrow11">▸</span>
+        </button>
+        <div class="accordion-body" id="accBody11" style="display:none;">
+<div class="info-box">內容會分別顯示在A組／B組頁面上方的公告欄，所有裝置同步顯示；留空則不顯示公告欄。</div>
+      <div style="font-size:13px;font-weight:700;color:#0369a1;margin-bottom:6px;">📋 A組公告</div>
+      <textarea id="aAnnouncementInput" rows="6" placeholder="例：使用方法&#10;1.先填「出院日期」..." style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;font-family:inherit;resize:vertical;box-sizing:border-box;margin-bottom:10px;"></textarea>
+      <div style="display:flex;gap:10px;margin-bottom:20px;">
+        <button class="btn btn-primary" onclick="saveAAnnouncement()">💾 儲存A組公告</button>
+        <button class="btn btn-danger" onclick="clearAAnnouncement()">🗑️ 清空</button>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:16px;">
+      <div style="font-size:13px;font-weight:700;color:#0369a1;margin-bottom:6px;">🛏️ B組公告</div>
+      <textarea id="bAnnouncementInput" rows="6" placeholder="輸入B組公告內容..." style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;font-family:inherit;resize:vertical;box-sizing:border-box;margin-bottom:10px;"></textarea>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-primary" onclick="saveBAnnouncement()">💾 儲存B組公告</button>
+        <button class="btn btn-danger" onclick="clearBAnnouncement()">🗑️ 清空</button>
+      </div>
+      </div>
+        </div>
+      </div>
       <div class="accordion-item">
         <button class="accordion-header" onclick="toggleAccordion(6)">
           <span>🔐 每月通行暗號</span>
@@ -1232,6 +1265,7 @@ function showTab(t){
     document.getElementById('tab-'+x).classList.toggle('active',x===t);
   });
   if(t==='a'){renderA();renderAStats();setTimeout(updateAHeaderTop,50);}
+  if(t==='b'){renderBAnnouncementBoard();}
 }
 
 
@@ -1443,6 +1477,8 @@ function showModule(mod){
     document.querySelectorAll('.accordion-body').forEach(function(b){b.style.display='none';});
     document.querySelectorAll('.accordion-arrow').forEach(function(a){a.classList.remove('open');});
     updateDischargedCount();updateBLogCount();renderTagEditors();renderBTagEditors();renderNurseSubTagEditors();
+    var annEl=document.getElementById('aAnnouncementInput');if(annEl)annEl.value=getAAnnouncement();
+    var bAnnEl=document.getElementById('bAnnouncementInput');if(bAnnEl)bAnnEl.value=getBAnnouncement();
   }
 }
 var openAccordionIdx=null;
@@ -1455,6 +1491,58 @@ function toggleListManager(){
   if(arrow)arrow.textContent=open?'▸':'▾';
   if(!open)renderTagEditors();
 }
+/* ── 各組公告 ── */
+const KEY_A_ANNOUNCEMENT='ward_a_announcement';
+const KEY_B_ANNOUNCEMENT='ward_b_announcement';
+function getAAnnouncement(){return ls(KEY_A_ANNOUNCEMENT)||'';}
+function getBAnnouncement(){return ls(KEY_B_ANNOUNCEMENT)||'';}
+function saveAAnnouncement(){
+  var el=document.getElementById('aAnnouncementInput');
+  var val=el?el.value:'';
+  lsSet(KEY_A_ANNOUNCEMENT,val);
+  renderAAnnouncementBoard();
+  showAlert('📌 A組公告已儲存');
+}
+function clearAAnnouncement(){
+  var el=document.getElementById('aAnnouncementInput');if(el)el.value='';
+  lsSet(KEY_A_ANNOUNCEMENT,'');
+  renderAAnnouncementBoard();
+}
+function saveBAnnouncement(){
+  var el=document.getElementById('bAnnouncementInput');
+  var val=el?el.value:'';
+  lsSet(KEY_B_ANNOUNCEMENT,val);
+  renderBAnnouncementBoard();
+  showAlert('📌 B組公告已儲存');
+}
+function clearBAnnouncement(){
+  var el=document.getElementById('bAnnouncementInput');if(el)el.value='';
+  lsSet(KEY_B_ANNOUNCEMENT,'');
+  renderBAnnouncementBoard();
+}
+function renderAAnnouncementBoard(){
+  var el=document.getElementById('aAnnouncementBoard');
+  if(!el)return;
+  var text=getAAnnouncement();
+  if(!text.trim()){el.innerHTML='';return;}
+  var html=esc(text).replace(/\n/g,'<br>');
+  el.innerHTML='<div style="background:#fefce8;border:1px solid #fde68a;border-radius:var(--radius);padding:10px 16px;height:100%;box-shadow:var(--shadow);font-size:13px;line-height:1.7;color:#78350f;box-sizing:border-box;overflow-y:auto;">'
+    +'<div style="font-weight:700;color:#b45309;margin-bottom:4px;">📌 A組公告</div>'
+    +html
+    +'</div>';
+}
+function renderBAnnouncementBoard(){
+  var el=document.getElementById('bAnnouncementBoard');
+  if(!el)return;
+  var text=getBAnnouncement();
+  if(!text.trim()){el.innerHTML='';return;}
+  var html=esc(text).replace(/\n/g,'<br>');
+  el.innerHTML='<div style="background:#fefce8;border:1px solid #fde68a;border-radius:var(--radius);padding:10px 16px;height:100%;box-shadow:var(--shadow);font-size:13px;line-height:1.7;color:#78350f;box-sizing:border-box;overflow-y:auto;">'
+    +'<div style="font-weight:700;color:#b45309;margin-bottom:4px;">📌 B組公告</div>'
+    +html
+    +'</div>';
+}
+
 function toggleAccordion(idx){
   var body=document.getElementById('accBody'+idx);
   var arrow=document.getElementById('accArrow'+idx);
@@ -1672,6 +1760,7 @@ function renderAStats(){
       +(x.field?'<div class="stat-hint">↑ 點擊查看清單</div>':'')
       +'</div>';
   }).join('');
+  renderAAnnouncementBoard();
 }
 
 /* ── WARNING LOGIC ── */
@@ -3400,6 +3489,7 @@ function showBTab(tab){
     document.getElementById('bpane-'+t).style.display=t===tab?'':'none';
     document.getElementById('btab-'+t).classList.toggle('active',t===tab);
   });
+  renderBAnnouncementBoard();
   if(tab==='overview'){renderBTable();var tbody=document.getElementById('bTableBody');if(tbody&&!tbody._bListener){tbody._bListener=true;document.getElementById('bTable').addEventListener('click',onBTableClick);document.getElementById('bTable').addEventListener('change',onBTableClick);}}
   if(tab==='daily'){renderBDaily();initBDaySelector();}
   if(tab==='tube') renderBLog('tube');
