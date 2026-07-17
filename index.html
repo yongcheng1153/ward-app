@@ -883,7 +883,7 @@ pullAll().then(()=>{
 </div>
 <!-- CONFIRM MODAL -->
 <div id="confirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9998;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:12px;padding:28px;width:360px;box-shadow:0 8px 32px rgba(0,0,0,.2);">
+  <div style="background:#fff;border-radius:12px;padding:28px;width:460px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,.2);">
     <div id="confirmMsg" style="font-size:15px;font-weight:600;margin-bottom:20px;line-height:1.6;"></div>
     <div style="display:flex;gap:10px;justify-content:flex-end;">
       <button onclick="confirmResolve(false)" style="padding:10px 20px;border:1px solid var(--border);border-radius:8px;background:#fff;font-size:14px;cursor:pointer;">取消</button>
@@ -2608,11 +2608,13 @@ function openCellPopup(e,patientId,field){
     const extBed=p.dischargeExtBed||'';
     bodyHtml='<input class="popup-input" id="popupInput" type="date" value="'+(p.discharge||'')+'">'
       +'<div style="font-size:11px;color:var(--text-muted);margin:6px 0 10px;">填入→標記已出院；清空→恢復在院</div>'
-      +'<div style="display:flex;gap:16px;margin-bottom:10px;">'
+      +'<div style="display:flex;gap:16px;margin-bottom:10px;flex-wrap:wrap;">'
       +'<label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;cursor:pointer;">'
-      +'<input type="checkbox" id="popupExternal" onchange="toggleExtBedInput()"'+(ext==='外轉'?' checked':'')+'>外轉</label>'
+      +'<input type="checkbox" id="popupExternal" onchange="onDischargeOptionChange(this)"'+(ext==='外轉'?' checked':'')+'>外轉</label>'
       +'<label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;cursor:pointer;">'
-      +'<input type="checkbox" id="popupTomorrow"'+(ext==='今辦明出'?' checked':'')+'>今辦明出</label></div>'
+      +'<input type="checkbox" id="popupTomorrow" onchange="onDischargeOptionChange(this)"'+(ext==='今辦明出'?' checked':'')+'>今辦明出</label>'
+      +'<label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;cursor:pointer;">'
+      +'<input type="checkbox" id="popupDeath" onchange="onDischargeOptionChange(this)"'+(ext==='死亡'?' checked':'')+'>死亡</label></div>'
       +'<div id="extBedWrap" style="display:'+(ext==='外轉'?'block':'none')+';margin-top:4px;">'
       +'<div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">外轉目標床位</div>'
       +'<input type="text" id="popupExtBed" placeholder="例：B201" value="'+extBed+'" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;outline:none;">'
@@ -2633,6 +2635,14 @@ function openCellPopup(e,patientId,field){
     inp.addEventListener('input',function(){popupSelectedChip=null;document.querySelectorAll('.option-chip.selected').forEach(function(c){c.classList.remove('selected');});});
     setTimeout(function(){inp.focus();},50);
   }
+}
+function onDischargeOptionChange(el){
+  if(el.checked){
+    ['popupExternal','popupTomorrow','popupDeath'].forEach(function(id){
+      if(id!==el.id){var o=document.getElementById(id);if(o)o.checked=false;}
+    });
+  }
+  toggleExtBedInput();
 }
 function toggleExtBedInput(){
   var cb=document.getElementById('popupExternal');
@@ -2691,6 +2701,7 @@ function saveCellPopup(){
   if(popupField==='discharge'){
     const ext=document.getElementById('popupExternal');
     const tom=document.getElementById('popupTomorrow');
+    const death=document.getElementById('popupDeath');
     const extBedEl=document.getElementById('popupExtBed');
     if(ext&&ext.checked){
       var bedVal=extBedEl?extBedEl.value.trim():'';
@@ -2698,6 +2709,7 @@ function saveCellPopup(){
       p.dischargeExt='外轉';p.dischargeExtBed=bedVal;
     }
     else if(tom&&tom.checked){p.dischargeExt='今辦明出';p.dischargeExtBed='';}
+    else if(death&&death.checked){p.dischargeExt='死亡';p.dischargeExtBed='';}
     else{p.dischargeExt='';p.dischargeExtBed='';}
   }
   if(popupField==='nurse'){
@@ -3195,8 +3207,9 @@ function showConfirm(msg, cbOrLabel, cbOrUndef, okLabelOrUndef){
 function confirmResolve(ok){
   document.getElementById('confirmOverlay').style.display='none';
   var okBtn=document.getElementById('confirmOkBtn'); if(okBtn)okBtn.textContent='確定';
-  if(_confirmCallback)_confirmCallback(ok);
-  _confirmCallback=null;
+  var cb=_confirmCallback;
+  _confirmCallback=null; // 先清空，若callback內又呼叫showConfirm（巢狀彈窗）設定新callback，才不會被這裡誤刪
+  if(cb)cb(ok);
 }
 
 /* ══════════════════════════════════════
@@ -4044,8 +4057,14 @@ function doTransfer(){
 
 function performTransfer(day){
   var s=calcDailyStats();
+  // 「無」不用轉移到月結資料，避免污染管路統計表的「其他」欄位（其他欄位是留給填表者自己填寫）
+  var tubeSnapshot={};
+  Object.keys(s.tubeCounts).forEach(function(t){
+    if(t==='無')return;
+    tubeSnapshot[t]=s.tubeCounts[t];
+  });
   bLog[day]={
-    tube:s.tubeCounts, totalTubes:s.totalTubes,
+    tube:tubeSnapshot, totalTubes:s.totalTubes,
     ncku:{single:s.nckuSingle,double:s.nckuDouble,nhi:s.nckuNhi,total:s.nckuTotal,newPatient:s.nckuNew,innerOcc:s.innerOccBeds,occupancy:s.occupancyRate,emptyNhi:s.emptyNhi},
     caregiver:{total:s.cgTotal,local:s.cgLocal,foreign:s.cgForeign},
     dept:s.deptCounts,
@@ -4054,7 +4073,16 @@ function performTransfer(day){
   saveBLog();
   B_BEDS.forEach(function(b){if(bData[b.id])bData[b.id].isNew=false;});
   saveBData(); renderBTable();
-  showConfirm(day+' 號資料已轉移完成！',function(){});
+  showConfirm(day+' 號資料已轉移完成！',function(){
+    showTransferReminder();
+  });
+}
+function showTransferReminder(){
+  var cm=document.getElementById('confirmMsg');
+  if(cm)cm.innerHTML='請記得填寫<br><span style="font-size:19px;">「護理實數表」、「P槽照顧者名單」</span>';
+  var okBtn=document.getElementById('confirmOkBtn'); if(okBtn)okBtn.textContent='我知道了';
+  document.getElementById('confirmOverlay').style.display='flex';
+  _confirmCallback=function(){};
 }
 
 /* ── RENDER TRANSFER LOGS ── */
@@ -4102,9 +4130,7 @@ function renderBLog(type){
 
   if(type==='tube'){
     var coreT=TUBE_LIST.slice();
-    var allT=getTubeList();
-    var otherTubes=allT.filter(function(t){return !coreT.includes(t);});
-    var displayCols=coreT.concat(otherTubes.length?['其他']:[]);
+    var displayCols=coreT.concat(['其他']); // 其他：讓填表者自行手動輸入的欄位，不再自動加總
     h+='<div class="table-wrap" style="overflow-x:auto;"><table class="btransfer-table"><thead><tr>';
     h+='<th style="'+thS+'">日期</th>';
     displayCols.forEach(function(t){h+='<th style="'+thS+'">'+t+'</th>';});
@@ -4115,12 +4141,9 @@ function renderBLog(type){
       var rec=bLog[d];var rowSum=0;
       h+='<tr><td style="'+tdD+'">'+d+'</td>';
       displayCols.forEach(function(col){
-        var val=0;
-        if(col==='其他'){otherTubes.forEach(function(ot){val+=(rec&&rec.tube&&rec.tube[ot]?rec.tube[ot]:0);});}
-        else{val=rec&&rec.tube&&rec.tube[col]!==undefined?rec.tube[col]:0;}
+        var val=rec&&rec.tube&&rec.tube[col]!==undefined?rec.tube[col]:0;
         rowSum+=val;colSumT[col]+=val;
-        if(col==='其他'){h+='<td style="'+(ri%2?tdA:tdS)+'">'+(rec?val:'')+'</td>';}
-        else{h+=cell(rec?val:'',d,col,ri%2===1);}
+        h+=cell(rec?val:'',d,col,ri%2===1);
       });
       grandT+=rowSum;
       h+='<td style="'+tdR+'">'+(rowSum||'')+'</td></tr>';
@@ -4604,10 +4627,10 @@ function exportPDF_B(){
   bLog=getBLog();var mP=m.split('-');var maxDay=m?new Date(parseInt(mP[0]),parseInt(mP[1]),0).getDate():31;
   var allDays=[];for(var d=1;d<=maxDay;d++)allDays.push(String(d));
   var css="\n  @page { margin: 12mm 10mm; }\n  * { box-sizing: border-box; }\n  body {\n    font-family: 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', sans-serif;\n    font-size: 12px; color: #1e293b; background: #fff;\n  }\n\n  /* ── 標題區 ── */\n  .doc-header {\n    text-align: center; margin-bottom: 10px;\n    padding-bottom: 8px; border-bottom: 2px solid #0e7490;\n  }\n  .doc-title {\n    font-size: 15px; font-weight: 800; color: #0e7490; letter-spacing: 1px;\n  }\n  .doc-meta {\n    font-size: 8px; color: #64748b; margin-top: 3px;\n  }\n\n  /* ── 表格 ── */\n  table {\n    width: 100%; border-collapse: collapse; font-size: 12px;\n    margin-bottom: 6px; page-break-inside: auto;\n  }\n  thead tr th {\n    background: #0e7490; color: #fff;\n    padding: 8px 4px; text-align: center;\n    font-weight: 700; border: 1px solid #0891b2;\n    white-space: nowrap; letter-spacing: 0.3px;\n  }\n  tbody tr td {\n    padding: 8px 4px; border: 1px solid #cbd5e1;\n    text-align: center; vertical-align: middle;\n  }\n  tbody tr:nth-child(even) td { background: #f0fdfa; }\n  tbody tr:nth-child(odd)  td { background: #fff; }\n\n  /* 已出院 */\n  tbody tr.dis td {\n    background: #f1f5f9 !important;\n    color: #94a3b8; font-style: italic;\n  }\n\n  /* 總計列 */\n  tbody tr.total td {\n    background: #e0f2fe !important;\n    font-weight: 700; color: #0e7490;\n    border-top: 2px solid #0e7490;\n  }\n\n  /* 日期欄 */\n  td.day-cell {\n    background: #f0fdfa !important; font-weight: 700;\n    color: #0e7490; width: 28px;\n  }\n\n  /* 科別欄 */\n  td.dept-cell {\n    background: #f0fdfa !important; font-weight: 600;\n    color: #0e7490; text-align: left; padding-left: 6px;\n  }\n\n  /* 統計合計欄位 */\n  td.sum-cell {\n    background: #fef3c7 !important; font-weight: 800;\n    color: #92400e; border-left: 2px solid #f59e0b;\n  }\n\n  /* 護理時數-班別 */\n  td.shift-cell {\n    background: #e0f2fe !important; font-weight: 800;\n    color: #0369a1; width: 20px;\n  }\n\n  /* 護理月統計 */\n  .nursing-stat table thead tr th { background: #0369a1; }\n  .nursing-stat td.label-cell {\n    background: #f0fdfa !important; font-weight: 700; text-align: left; padding-left:6px;\n  }\n  .nursing-stat td.val-cell {\n    font-weight: 800; color: #dc2626; font-size: 10px;\n  }\n  .nursing-stat td.formula-cell {\n    font-size: 8px; color: #64748b; text-align: left; padding-left: 6px;\n  }\n\n  /* 分頁 */\n  .pb { page-break-before: always; }\n  @page P { size: A4 portrait; }\n  @page L { size: A4 landscape; }\n  .P { page: P; }\n  .L { page: L; }\n  table.tbl-tube thead tr th { font-size: 5px !important; padding: 4px 1px; }\ntable.tbl-tube tbody tr td { font-size: 10px !important; padding: 7px 3px; }\ntable.tbl-ncku thead tr th { font-size: 10px !important; }\ntable.tbl-ncku tbody tr td { font-size: 10px !important; padding: 7px 3px; }\ntable.tbl-cg thead tr th { font-size: 10px !important; }\ntable.tbl-cg tbody tr td { font-size: 10px !important; padding: 7px 3px; }\ntable.tbl-dept thead tr th { font-size: 6.5px !important; padding: 4px 1px; }\ntable.tbl-dept tbody tr td { font-size: 10px !important; padding: 7px 1px; }\ntable.tbl-dept tbody td.dept-cell { font-size: 6.5px !important; padding: 4px 2px; }\n.nt { font-size: 8px !important; }\n.nt th { font-size: 8px !important; padding: 5px 1px !important; }\n.nt td { font-size: 8px !important; padding: 5px 1px !important; }\n";
-  var coreT=TUBE_LIST.slice();var allT=getTubeList();var otherT=allT.filter(function(t){return!coreT.includes(t);});var dCols=coreT.concat(otherT.length?['其他']:[]);
+  var coreT=TUBE_LIST.slice();var dCols=coreT.concat(['其他']);
   var tH='<div class="doc-header"><div class="doc-title">A1病房'+label+'管路統計表</div></div><table class="tbl-tube"><tr><th>日期</th>'+dCols.map(function(c){return'<th>'+c+'</th>';}).join('')+'<th>總計</th></tr>';
   var ct={};dCols.forEach(function(c){ct[c]=0;});var gt=0;
-  allDays.forEach(function(d,ri){var rec=bLog[d];var rs=0;tH+='<tr style="background:'+(ri%2?'#f0f9ff':'#fff')+'"><td style="font-weight:700;background:#fef9c3;">'+d+'</td>';dCols.forEach(function(col){var v=0;if(col==='其他'){otherT.forEach(function(t){v+=(rec&&rec.tube&&rec.tube[t]?rec.tube[t]:0);});}else{v=rec&&rec.tube&&rec.tube[col]!==undefined?rec.tube[col]:0;}rs+=v;ct[col]+=v;tH+='<td>'+(v||0)+'</td>';});gt+=rs;tH+='<td style="font-weight:700;color:#dc2626;">'+(rec?(rs||''):'')+'</td></tr>';});
+  allDays.forEach(function(d,ri){var rec=bLog[d];var rs=0;tH+='<tr style="background:'+(ri%2?'#f0f9ff':'#fff')+'"><td style="font-weight:700;background:#fef9c3;">'+d+'</td>';dCols.forEach(function(col){var v=rec&&rec.tube&&rec.tube[col]!==undefined?rec.tube[col]:0;rs+=v;ct[col]+=v;tH+='<td>'+(v||0)+'</td>';});gt+=rs;tH+='<td style="font-weight:700;color:#dc2626;">'+(rec?(rs||''):'')+'</td></tr>';});
   tH+='<tr class="total"><td class="day-cell">總計</td>'+dCols.map(function(c){return'<td style="font-weight:700;">'+ct[c]+'</td>';}).join('')+'<td style="font-weight:800;color:#dc2626;">'+gt+'</td></tr></table>';
   var nCols=['單人床','雙人床','健保床','總計','新病人數','內科佔床','占床率','空健保床'];var nFM={'單人床':'single','雙人床':'double','健保床':'nhi','總計':'total','新病人數':'newPatient','內科佔床':'innerOcc','占床率':'occupancy','空健保床':'emptyNhi'};
   var nH='<div class="doc-header"><div class="doc-title">A1合作病房'+label+'病患入住人數登入表</div></div><table class="tbl-ncku" style="table-layout:fixed;width:100%"><colgroup><col style="width:40px">'+nCols.map(function(){return'<col>';}).join('')+'</colgroup><tr><th>日期</th>'+nCols.map(function(c){return'<th>'+c+'</th>';}).join('')+'</tr>';
@@ -5568,12 +5591,22 @@ function renderNodcReport(){
   list.forEach(function(p,idx){
     var entry=getNodcEntry(p.id);
 
-    // 1. 外轉：自動帶入原因「其他因素」+「外轉→床位」
-    if(p.dischargeExt==='外轉'&&p.dischargeExtBed){
-      if(!entry.reason||entry.reason==='其他因素'){
-        entry.reason='其他因素';
-        entry.reasonOther='外轉→'+p.dischargeExtBed;
-        setNodcEntry(p.id,entry);
+    // 1. 根據目前的外轉/死亡狀態自動帶入或同步更新原因（使用者手動選過的原因不會被覆蓋）
+    if(!entry.reasonManual){
+      var autoDesired=null;
+      if(p.dischargeExt==='外轉'&&p.dischargeExtBed){
+        autoDesired={reason:'其他因素',reasonOther:'外轉→'+p.dischargeExtBed};
+      } else if(p.dischargeExt==='死亡'){
+        autoDesired={reason:'病人死亡',reasonOther:''};
+      }
+      if(autoDesired){
+        var looksAuto=!entry.reason||entry.reason==='病人死亡'
+          ||(entry.reason==='其他因素'&&entry.reasonOther&&entry.reasonOther.indexOf('外轉→')===0);
+        if(looksAuto&&(entry.reason!==autoDesired.reason||entry.reasonOther!==autoDesired.reasonOther)){
+          entry.reason=autoDesired.reason;
+          entry.reasonOther=autoDesired.reasonOther;
+          setNodcEntry(p.id,entry);
+        }
       }
     }
     // 2. 出院返回：自動帶入A組「來自」欄
@@ -5733,6 +5766,7 @@ function saveNodcReasonPopup(){
   if(!sel){closeTubePopup();return;}
   var entry=getNodcEntry(nodcPopupPatientId);
   entry.reason=sel.value;
+  entry.reasonManual=true; // 使用者手動選過，之後自動帶入邏輯不再覆蓋
   if(sel.value==='其他因素'){
     var otherInput=document.getElementById('nodcReasonOtherInput');
     entry.reasonOther=otherInput?otherInput.value.trim():'';
@@ -5798,10 +5832,22 @@ function exportNodcPDF(downloadHtml){
   var h='<table><thead><tr><th>編號</th><th>床位</th><th>病歷號</th><th>病人資料</th><th>出院日期</th><th>主治醫師</th><th>無法今辦明出原因</th><th>出院返回</th></tr></thead><tbody>';
   list.forEach(function(p,idx){
     var entry=getNodcEntry(p.id);
-    // 外轉自動帶入
-    if(p.dischargeExt==='外轉'&&p.dischargeExtBed&&(!entry.reason||entry.reason==='其他因素')){
-      entry.reason='其他因素';
-      entry.reasonOther='外轉→'+p.dischargeExtBed;
+    // 根據目前的外轉/死亡狀態自動帶入或同步更新原因（使用者手動選過的原因不會被覆蓋）
+    if(!entry.reasonManual){
+      var autoDesired2=null;
+      if(p.dischargeExt==='外轉'&&p.dischargeExtBed){
+        autoDesired2={reason:'其他因素',reasonOther:'外轉→'+p.dischargeExtBed};
+      } else if(p.dischargeExt==='死亡'){
+        autoDesired2={reason:'病人死亡',reasonOther:''};
+      }
+      if(autoDesired2){
+        var looksAuto2=!entry.reason||entry.reason==='病人死亡'
+          ||(entry.reason==='其他因素'&&entry.reasonOther&&entry.reasonOther.indexOf('外轉→')===0);
+        if(looksAuto2){
+          entry.reason=autoDesired2.reason;
+          entry.reasonOther=autoDesired2.reasonOther;
+        }
+      }
     }
     // 出院返回自動帶入來自
     if(!entry.returnTo&&!entry.returnNote&&(p.fromPlace||p.fromPlaceNote)){
