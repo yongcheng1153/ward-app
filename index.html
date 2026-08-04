@@ -3240,8 +3240,9 @@ function buildListTable(field,list){
         if(!monthStr)return;
         var parts=monthStr.split('-');
         var mYear=parseInt(parts[0]),mMonth=parseInt(parts[1]);
-        // 結束時間：先取結案日期，沒有才取出院日期
-        var endDateStr=d.caseDate||p.discharge||'';
+        // 結束時間：已出院者用出院日期（不計入當天）；否則用結案日期（頭尾皆計算）
+        var isDischarged=!!p.discharge;
+        var endDateStr=isDischarged?p.discharge:(d.caseDate||'');
         if(!endDateStr)return;
         var endDate=new Date(endDateStr.replace(/\//g,'-'));
         if(isNaN(endDate))return;
@@ -3253,7 +3254,8 @@ function buildListTable(field,list){
         if(isNaN(admitDate))return;
         var startDate=admitDate>monthStart?admitDate:monthStart;
         if(endDate<startDate)return;
-        stayDays=(Math.round((endDate-startDate)/(1000*60*60*24))+1)+'天';
+        var dayCount=Math.round((endDate-startDate)/(1000*60*60*24))+(isDischarged?0:1);
+        if(dayCount>0)stayDays=dayCount+'天';
       })();
       h+='<tr style="'+(isResolved?'background:#f1f5f9;color:#94a3b8;':'')+'">'
         +'<td>'+bedDisp(p)+'</td><td>'+(p.pid||'—')+'</td><td>'+p.name+'</td>'
@@ -3581,7 +3583,17 @@ function renderNurseSubTagEditors(){
   });
 }
 function getTubeList(){try{var s=ls(KEY_TUBE_CUSTOM);return s?JSON.parse(s):TUBE_LIST.slice();}catch(e){return TUBE_LIST.slice();}}
-function getDeptBList(){try{var s=ls(KEY_DEPT_B);return s?JSON.parse(s):DEPT_LIST.slice();}catch(e){return DEPT_LIST.slice();}}
+function getDeptBList(){
+  var list;
+  try{var s=ls(KEY_DEPT_B);list=s?JSON.parse(s):DEPT_LIST.slice();}catch(e){list=DEPT_LIST.slice();}
+  // 「未分科」不論新增順序為何，永遠排在清單最後
+  var idx=list.indexOf('未分科');
+  if(idx!==-1&&idx!==list.length-1){
+    list=list.filter(function(x){return x!=='未分科';});
+    list.push('未分科');
+  }
+  return list;
+}
 function getTotalBeds(){return parseInt(ls(KEY_TOTAL_BEDS)||'26');}
 function getBedDefault(b){
   return {isNew:false,tubes:[],tubeExtra:{},bedType:b.bedType||'健保床',source:'',caregivers:[],caregiverCustom:'',caregiverDetails:[],admitDate:'',dept:'',placement:'',placementNote:'',hasExtra:false,alert:false};
@@ -4810,7 +4822,7 @@ function exportPDF_A(){
   var css="\n  @page { margin: 12mm 10mm; }\n  * { box-sizing: border-box; }\n  body {\n    font-family: 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', sans-serif;\n    font-size: 10px; color: #1e293b; background: #fff;\n  }\n\n  /* ── 標題區 ── */\n  .doc-header {\n    text-align: center; margin-bottom: 10px;\n    padding-bottom: 8px; border-bottom: 2px solid #0e7490;\n  }\n  .doc-title {\n    font-size: 15px; font-weight: 800; color: #0e7490; letter-spacing: 1px;\n  }\n  .doc-meta {\n    font-size: 8px; color: #64748b; margin-top: 3px;\n  }\n\n  /* ── 表格 ── */\n  table {\n    width: 100%; border-collapse: collapse; font-size: 10px;\n    margin-bottom: 6px; page-break-inside: auto;\n  }\n  thead tr th {\n    background: #0e7490; color: #fff;\n    padding: 5px 4px; text-align: center;\n    font-weight: 700; border: 1px solid #0891b2;\n    white-space: nowrap; letter-spacing: 0.3px;\n  }\n  tbody tr td {\n    padding: 4px 4px; border: 1px solid #cbd5e1;\n    text-align: center; vertical-align: middle;\n  }\n  tbody tr:nth-child(even) td { background: #f0fdfa; }\n  tbody tr:nth-child(odd)  td { background: #fff; }\n\n  /* 已出院 */\n  tbody tr.dis td {\n    background: #f1f5f9 !important;\n    color: #94a3b8; font-style: italic;\n  }\n\n  /* 總計列 */\n  tbody tr.total td {\n    background: #e0f2fe !important;\n    font-weight: 700; color: #0e7490;\n    border-top: 2px solid #0e7490;\n  }\n\n  /* 日期欄 */\n  td.day-cell {\n    background: #f0fdfa !important; font-weight: 700;\n    color: #0e7490; width: 28px;\n  }\n\n  /* 科別欄 */\n  td.dept-cell {\n    background: #f0fdfa !important; font-weight: 600;\n    color: #0e7490; text-align: left; padding-left: 6px;\n  }\n\n  /* 統計合計欄位 */\n  td.sum-cell {\n    background: #fef3c7 !important; font-weight: 800;\n    color: #92400e; border-left: 2px solid #f59e0b;\n  }\n\n  /* 護理時數-班別 */\n  td.shift-cell {\n    background: #e0f2fe !important; font-weight: 800;\n    color: #0369a1; width: 20px;\n  }\n\n  /* 護理月統計 */\n  .nursing-stat table thead tr th { background: #0369a1; }\n  .nursing-stat td.label-cell {\n    background: #f0fdfa !important; font-weight: 700; text-align: left; padding-left:6px;\n  }\n  .nursing-stat td.val-cell {\n    font-weight: 800; color: #dc2626; font-size: 10px;\n  }\n  .nursing-stat td.formula-cell {\n    font-size: 8px; color: #64748b; text-align: left; padding-left: 6px;\n  }\n\n  /* 分頁 */\n  .pb { page-break-before: always; }\n  @page P { size: A4 portrait; }\n  @page L { size: A4 landscape; }\n  .P { page: P; }\n  .L { page: L; }\n  .v-center { display:flex; flex-direction:column; justify-content:center; align-items:center; min-height:100vh; }\n";
   function chk(v){return v?'o':'';}
   var fH='<div class="doc-header"><div class="doc-title">A1病房'+label+'跌倒評估高危險名單</div></div><table><tr><th>床號</th><th>病例號</th><th>姓名</th><th>入院日期</th><th>入A1</th><th>出院日期</th><th>結案日期</th><th>當月住院天數</th><th>備註</th></tr>';
-  patients.filter(function(p){return p.fall;}).sort(function(a,b){var ad=a.details&&a.details.fall||{};var bd=b.details&&b.details.fall||{};return(!!(a.discharge||ad.caseDate))-(!!(b.discharge||bd.caseDate))||a.bed.localeCompare(b.bed,undefined,{numeric:true});}).forEach(function(p){var d=p.details&&p.details.fall||{};var isR=!!(p.discharge||d.caseDate);var stay='—';if(mP.length===2&&p.admit_a1){var mS=new Date(parseInt(mP[0]),parseInt(mP[1])-1,1);var aD=new Date((p.admit_a1||'').replace(/\//g,'-'));var eStr=d.caseDate||p.discharge||'';var eD;if(eStr){eD=new Date(eStr.replace(/\//g,'-'));}else{var mLast=new Date(parseInt(mP[0]),parseInt(mP[1]),0);var today=new Date();today.setHours(0,0,0,0);eD=today<mLast?today:mLast;}var sD=aD>mS?aD:mS;if(eD>=sD)stay=(Math.round((eD-sD)/86400000)+1)+'天';}fH+='<tr class="'+(isR?'dis':'')+'"><td>'+esc(p.bed)+'</td><td>'+esc(p.pid)+'</td><td>'+esc(p.name)+'</td><td>'+esc(p.admit)+'</td><td>'+esc(p.admit_a1)+'</td><td>'+esc(p.discharge||'')+'</td><td>'+esc(d.caseDate||'')+'</td><td>'+stay+'</td><td style="text-align:left">'+esc(d.note||'')+'</td></tr>';});fH+='</table>';
+  patients.filter(function(p){return p.fall;}).sort(function(a,b){var ad=a.details&&a.details.fall||{};var bd=b.details&&b.details.fall||{};return(!!(a.discharge||ad.caseDate))-(!!(b.discharge||bd.caseDate))||a.bed.localeCompare(b.bed,undefined,{numeric:true});}).forEach(function(p){var d=p.details&&p.details.fall||{};var isR=!!(p.discharge||d.caseDate);var stay='—';if(mP.length===2&&p.admit_a1){var mS=new Date(parseInt(mP[0]),parseInt(mP[1])-1,1);var aD=new Date((p.admit_a1||'').replace(/\//g,'-'));var isDischarged=!!p.discharge;var eStr=isDischarged?p.discharge:(d.caseDate||'');var eD,inclusive;if(eStr){eD=new Date(eStr.replace(/\//g,'-'));inclusive=!isDischarged;}else{var mLast=new Date(parseInt(mP[0]),parseInt(mP[1]),0);var today=new Date();today.setHours(0,0,0,0);eD=today<mLast?today:mLast;inclusive=true;}var sD=aD>mS?aD:mS;if(eD>=sD){var dayCount=Math.round((eD-sD)/86400000)+(inclusive?1:0);if(dayCount>0)stay=dayCount+'天';}}fH+='<tr class="'+(isR?'dis':'')+'"><td>'+esc(p.bed)+'</td><td>'+esc(p.pid)+'</td><td>'+esc(p.name)+'</td><td>'+esc(p.admit)+'</td><td>'+esc(p.admit_a1)+'</td><td>'+esc(p.discharge||'')+'</td><td>'+esc(d.caseDate||'')+'</td><td>'+stay+'</td><td style="text-align:left">'+esc(d.note||'')+'</td></tr>';});fH+='</table>';
   var dH='<div class="doc-header"><div class="doc-title">A1病房'+label+'DNR病患名單</div></div><table><tr><th>床號</th><th>病例號</th><th>姓名</th><th>入院</th><th>入A1</th><th>出院</th><th>本院簽立</th><th>預立安寧</th><th>全拒</th><th>院宣</th><th>藥物</th><th>壓胸</th><th>電擊</th><th>插管</th></tr>';
   patients.filter(function(p){return p.dnr;}).forEach(function(p){var d=p.details&&p.details.dnr||{};var palliDisp=d.palliDate||(d.palliNoDate?'✓（無日期）':'');dH+='<tr class="'+(p.discharge?'dis':'')+'"><td>'+esc(p.bed)+'</td><td>'+esc(p.pid)+'</td><td>'+esc(p.name)+'</td><td>'+esc(p.admit)+'</td><td>'+esc(p.admit_a1)+'</td><td>'+esc(p.discharge||'')+'</td><td>'+esc(d.signDate||'')+'</td><td>'+esc(palliDisp)+'</td><td>'+chk(d.fullRefuse)+'</td><td>'+chk(d.hospDecl)+'</td><td>'+chk(d.noMed)+'</td><td>'+chk(d.noCPR)+'</td><td>'+chk(d.noDefib)+'</td><td>'+chk(d.noIntub)+'</td></tr>';});dH+='</table>';
   var iH='<div class="doc-header"><div class="doc-title">A1病房'+label+'接觸隔離病患紀錄</div></div><table><tr><th>床號</th><th>病例號</th><th>姓名</th><th>入院</th><th>入A1</th><th>看護</th><th>出院</th><th>#</th><th>隔離日期</th><th>檢體</th><th>菌種</th><th>解/轉</th><th>解/轉日期</th></tr>';
