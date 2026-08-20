@@ -5297,10 +5297,8 @@ function renderRestraintReport(){
     var hours=calcRestHours(b.startTime,b.endTime,ym);
     var durCol=hours<=4?'≤4':(hours<=8?'≤8':(hours<=24?'≤24':'>24'));
     var startDisp=b.startTime?(b.startTime.replace('T',' ').slice(0,16)):'';
-    // 開始時間邏輯：若為當月→採用原始時間；若非當月（上月延續）→自動以當月01日08:00顯示
-    var startActual=b.startTime?new Date(b.startTime):null;
-    var startIsLastMonth=startActual&&(startActual.getFullYear()<p2.y||(startActual.getFullYear()===p2.y&&startActual.getMonth()+1<p2.m));
-    var startDisplayStr=startIsLastMonth?(p2.y+'-'+String(p2.m).padStart(2,'0')+'-01 08:00'):startDisp;
+    // 顯示一律用真實的開始時間；跨月時數計算邏輯不變（見calcRestHours內部處理）
+    var startDisplayStr=startDisp;
     var endDisp=b.endTime?b.endTime.replace('T',' ').slice(0,16):'持續約束中';
     var endReason=getRestEndReason(b,pat);
     var shift=getRestShiftCode(b.startTime);
@@ -5609,10 +5607,8 @@ function exportRestraintExcel(){
       var hours=calcRestHours(b.startTime,b.endTime,ym);
       totH+=hours;
       var durCol=hours<=4?'≤4':(hours<=8?'≤8':(hours<=24?'≤24':'>24'));
-      var startActual=b.startTime?new Date(b.startTime):null;
-      var startIsLastMonth=startActual&&(startActual.getFullYear()<p2.y||(startActual.getFullYear()===p2.y&&startActual.getMonth()+1<p2.m));
       var startDisp=b.startTime?b.startTime.replace('T',' ').slice(0,16):'';
-      if(startIsLastMonth)startDisp=p2.y+'-'+String(p2.m).padStart(2,'0')+'-01 08:00';
+      // 顯示一律用真實的開始時間；跨月時數計算邏輯不變（見calcRestHours內部處理）
       var endDisp=b.endTime?b.endTime.replace('T',' ').slice(0,16):'持續約束中';
       var endReason=getRestEndReason(b,pat);
       var shift=getRestShiftCode(b.startTime);
