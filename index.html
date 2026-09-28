@@ -281,11 +281,33 @@ function(r){"object"==typeof e&&void 0!==t?t.exports=r():"function"==typeof defi
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getDatabase, ref, set, get, onValue, remove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
+// Firebase 網頁設定（這些欄位本來就設計成可公開，真正的保護是資料庫規則）
 const app = initializeApp({
-  databaseURL: 'https://a1wardsystem-default-rtdb.asia-southeast1.firebasedatabase.app'
+  apiKey: "AIzaSyBYHqwgJ8iqj0RQCmicYAXshzTshRvyjAc",
+  authDomain: "a1wardsystem.firebaseapp.com",
+  databaseURL: "https://a1wardsystem-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "a1wardsystem",
+  storageBucket: "a1wardsystem.firebasestorage.app",
+  messagingSenderId: "819258489861",
+  appId: "1:819258489861:web:598cf0e12723a4f257b06c"
 });
 const db = getDatabase(app);
+const auth = getAuth(app);
+
+// 匿名登入：所有資料庫讀寫都會等這一步完成才送出。
+// 登入失敗時不會卡死系統（規則尚未收緊時仍可連線；規則收緊後會自動退回本機資料）
+const authReady = (async ()=>{
+  try{
+    if(!auth.currentUser) await signInAnonymously(auth);
+    console.log('[FB] 匿名登入成功');
+    return true;
+  }catch(e){
+    console.warn('[FB] 匿名登入失敗', e);
+    return false;
+  }
+})();
 
 // 所有 key 都上雲（包含密碼）
 const LOCAL_ONLY = new Set([]);
@@ -313,27 +335,45 @@ function watch(){
       if(localStorage.getItem(k)!==str){ localStorage.setItem(k,str); changed=true; }
     });
     if(changed && typeof window._fbOnSync==='function') window._fbOnSync();
+  },(err)=>{
+    console.warn('[FB] 即時監聽失敗（可能是權限不足）',err);
+    window._fbFailed=true; _fbNotify();
   });
 }
 
-// 暴露寫入 / 刪除方法
+// 暴露寫入 / 刪除方法（追蹤同步狀態：pending筆數 + 是否有失敗）
+window._fbPending = 0;
+window._fbFailed = false;
+function _fbNotify(){ if(typeof window._onFbSyncStatusChange==='function') window._onFbSyncStatusChange(); }
 window._fbSet = (k,v)=>{
   if(LOCAL_ONLY.has(k)) return;
-  set(ref(db,'ward/'+k), v).catch(e=>console.warn('[FB] 寫入失敗',k,e));
+  window._fbPending++; _fbNotify();
+  authReady.then(()=>set(ref(db,'ward/'+k), v)).then(()=>{
+    window._fbPending=Math.max(0,window._fbPending-1); _fbNotify();
+  }).catch(e=>{
+    console.warn('[FB] 寫入失敗',k,e);
+    window._fbPending=Math.max(0,window._fbPending-1); window._fbFailed=true; _fbNotify();
+  });
 };
 window._fbRemove = (k)=>{
   if(LOCAL_ONLY.has(k)) return;
-  remove(ref(db,'ward/'+k)).catch(e=>console.warn('[FB] 刪除失敗',k,e));
+  window._fbPending++; _fbNotify();
+  authReady.then(()=>remove(ref(db,'ward/'+k))).then(()=>{
+    window._fbPending=Math.max(0,window._fbPending-1); _fbNotify();
+  }).catch(e=>{
+    console.warn('[FB] 刪除失敗',k,e);
+    window._fbPending=Math.max(0,window._fbPending-1); window._fbFailed=true; _fbNotify();
+  });
 };
 // 即時讀取單一 key（用於登入驗證）
 window._fbGet = (k, cb)=>{
-  get(ref(db,'ward/'+k)).then(snap=>{
+  authReady.then(()=>get(ref(db,'ward/'+k))).then(snap=>{
     cb(snap.exists()?snap.val():null);
   }).catch(()=>cb(null));
 };
 
-// 啟動
-pullAll().then(()=>{
+// 啟動：先匿名登入，再拉資料
+authReady.then(()=>pullAll()).then(()=>{
   watch();
   window._fbReady=true;
   document.dispatchEvent(new Event('firebase-ready'));
@@ -363,7 +403,7 @@ pullAll().then(()=>{
 <div id="app">
   <div class="topbar">
     <div class="topbar-left"><span style="font-size:20px;">🏥</span><span class="topbar-title">A1病房管理系統</span><span class="topbar-month" id="topbarMonth"></span></div>
-    <div class="topbar-right"><button id="back-to-home-btn" onclick="showHome()" style="display:none;background:#fff;border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:13px;color:var(--text);cursor:pointer;margin-right:8px;">← 主選單</button><button class="btn btn-danger" onclick="doLogout()">登出</button></div>
+    <div class="topbar-right"><span id="fbSyncBadge" style="display:none;align-items:center;gap:5px;font-size:12px;padding:4px 10px;border-radius:12px;margin-right:8px;white-space:nowrap;"></span><button id="back-to-home-btn" onclick="showHome()" style="display:none;background:#fff;border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:13px;color:var(--text);cursor:pointer;margin-right:8px;">← 主選單</button><button class="btn btn-danger" onclick="doLogout()">登出</button></div>
   </div>
   <!-- ── 主選單 ── -->
   <div id="home-screen-app" style="min-height:calc(100vh - 56px);display:flex;align-items:center;justify-content:center;background:var(--bg);">
@@ -1622,6 +1662,43 @@ function toggleAccordion(idx){
   }
 }
 /* ── MONTH / PASS ── */
+/* ── 雲端同步狀態指示器 ── */
+window._onFbSyncStatusChange = function(){
+  var badge = document.getElementById('fbSyncBadge');
+  if(!badge) return;
+  var pending = window._fbPending || 0;
+  var failed = window._fbFailed;
+  if(failed){
+    badge.style.display='inline-flex';
+    badge.style.background='#fecaca';
+    badge.style.color='#991b1b';
+    badge.textContent='⚠️ 同步失敗，請檢查網路';
+  } else if(pending > 0){
+    badge.style.display='inline-flex';
+    badge.style.background='#fef9c3';
+    badge.style.color='#92400e';
+    badge.textContent='☁️ 同步中…（請勿關閉分頁）';
+  } else {
+    badge.style.display='inline-flex';
+    badge.style.background='#dcfce7';
+    badge.style.color='#166534';
+    badge.textContent='✅ 已同步';
+    // 已同步的提示閃一下就淡出，避免一直佔位
+    clearTimeout(window._fbBadgeHideTimer);
+    window._fbBadgeHideTimer=setTimeout(function(){
+      if((window._fbPending||0)===0 && !window._fbFailed && badge) badge.style.display='none';
+    },2500);
+  }
+};
+// 還有資料同步中時，離開/關閉分頁前跳出瀏覽器原生警告
+window.addEventListener('beforeunload', function(e){
+  if((window._fbPending||0) > 0){
+    e.preventDefault();
+    e.returnValue = '還有資料正在同步到雲端，確定要離開嗎？未同步完成的內容可能會遺失。';
+    return e.returnValue;
+  }
+});
+
 function updateMonthDisplay(){
   const m=ls(KEY_MONTH);
   document.getElementById('topbarMonth').textContent=m?('📅 '+m.replace('-','年')+'月'):'';
@@ -4957,7 +5034,9 @@ function exportPDF_A(){
   var css="\n  @page { margin: 7mm 5mm; }\n  * { box-sizing: border-box; }\n  body {\n    font-family: 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', sans-serif;\n    font-size: 14px; color: #1e293b; background: #fff;\n    -webkit-print-color-adjust: exact; color-adjust: exact; print-color-adjust: exact;\n  }\n  * { -webkit-print-color-adjust: exact; color-adjust: exact; print-color-adjust: exact; }\n\n  /* ── 標題區 ── */\n  .doc-header {\n    text-align: center; margin-bottom: 10px;\n    padding-bottom: 8px; border-bottom: 2px solid #0e7490;\n  }\n  .doc-title {\n    font-size: 15px; font-weight: 800; color: #0e7490; letter-spacing: 1px;\n  }\n  .doc-meta {\n    font-size: 8px; color: #64748b; margin-top: 3px;\n  }\n\n  /* ── 表格 ── */\n  table {\n    width: 100%; border-collapse: collapse; font-size: 14px;\n    margin-bottom: 6px; page-break-inside: auto;\n  }\n  thead tr th {\n    background: #0e7490; color: #fff;\n    padding: 1px; text-align: center;\n    font-weight: 700; border: 1px solid #0891b2;\n    white-space: nowrap; letter-spacing: 0.3px;\n  }\n  tbody tr td {\n    padding: 1px; border: 1px solid #cbd5e1;\n    text-align: center; vertical-align: middle;\n  }\n  tbody tr:nth-child(even) td { background: #f0fdfa; }\n  tbody tr:nth-child(odd)  td { background: #fff; }\n\n  /* 已出院 */\n  tbody tr.dis td {\n    background: #f1f5f9 !important;\n    color: #28303b; font-style: italic;\n  }\n\n  /* 總計列 */\n  tbody tr.total td {\n    background: #e0f2fe !important;\n    font-weight: 700; color: #0e7490;\n    border-top: 2px solid #0e7490;\n  }\n\n  /* 日期欄 */\n  td.day-cell {\n    background: #f0fdfa !important; font-weight: 700;\n    color: #0e7490; width: 28px;\n  }\n\n  /* 科別欄 */\n  td.dept-cell {\n    background: #f0fdfa !important; font-weight: 600;\n    color: #0e7490; text-align: left; padding-left: 6px;\n  }\n\n  /* 統計合計欄位 */\n  td.sum-cell {\n    background: #fef3c7 !important; font-weight: 800;\n    color: #92400e; border-left: 2px solid #f59e0b;\n  }\n\n  /* 護理時數-班別 */\n  td.shift-cell {\n    background: #e0f2fe !important; font-weight: 800;\n    color: #0369a1; width: 20px;\n  }\n\n  /* 護理月統計 */\n  .nursing-stat table thead tr th { background: #0369a1; }\n  .nursing-stat td.label-cell {\n    background: #f0fdfa !important; font-weight: 700; text-align: left; padding-left:6px;\n  }\n  .nursing-stat td.val-cell {\n    font-weight: 800; color: #dc2626; font-size: 14px;\n  }\n  .nursing-stat td.formula-cell {\n    font-size: 8px; color: #64748b; text-align: left; padding-left: 6px;\n  }\n\n  /* 分頁 */\n  .pb { page-break-before: always; }\n  @page P { size: A4 portrait; }\n  @page L { size: A4 landscape; }\n  .P { page: P; }\n  .L { page: L; }\n  .v-center { display:flex; flex-direction:column; justify-content:center; align-items:center; min-height:100vh; }\n";
   function chk(v){return v?'o':'';}
   var fH='<div class="doc-header"><div class="doc-title">A1病房'+label+'跌倒評估高危險名單</div></div><table><tr><th>床號</th><th>病例號</th><th>姓名</th><th>入院日期</th><th>入A1</th><th>出院日期</th><th>結案日期</th><th>當月住院天數</th><th>備註</th></tr>';
-  patients.filter(function(p){return p.fall;}).sort(function(a,b){var ad=a.details&&a.details.fall||{};var bd=b.details&&b.details.fall||{};return(!!(a.discharge||ad.caseDate))-(!!(b.discharge||bd.caseDate))||a.bed.localeCompare(b.bed,undefined,{numeric:true});}).forEach(function(p){var d=p.details&&p.details.fall||{};var isR=!!(p.discharge||d.caseDate);var stay='—';if(mP.length===2&&p.admit_a1){var mS=new Date(parseInt(mP[0]),parseInt(mP[1])-1,1);var aD=new Date((p.admit_a1||'').replace(/\//g,'-'));var isDischarged=!!p.discharge;var eStr=isDischarged?p.discharge:(d.caseDate||'');var eD,inclusive;if(eStr){eD=new Date(eStr.replace(/\//g,'-'));inclusive=!isDischarged;}else{var mLast=new Date(parseInt(mP[0]),parseInt(mP[1]),0);var today=new Date();today.setHours(0,0,0,0);eD=today<mLast?today:mLast;inclusive=true;}var sD=aD>mS?aD:mS;if(eD>=sD){var dayCount=Math.round((eD-sD)/86400000)+(inclusive?1:0);if(dayCount>0)stay=dayCount+'天';}}fH+='<tr class="'+(isR?'dis':'')+'"><td>'+esc(p.bed)+'</td><td>'+esc(p.pid)+'</td><td>'+esc(p.name)+'</td><td>'+esc(p.admit)+'</td><td>'+esc(p.admit_a1)+'</td><td>'+esc(p.discharge||'')+'</td><td>'+esc(d.caseDate||'')+'</td><td>'+stay+'</td><td style="text-align:left">'+esc(d.note||'')+'</td></tr>';});fH+='</table>';
+  var fallStayTotal=0;
+  patients.filter(function(p){return p.fall;}).sort(function(a,b){var ad=a.details&&a.details.fall||{};var bd=b.details&&b.details.fall||{};return(!!(a.discharge||ad.caseDate))-(!!(b.discharge||bd.caseDate))||a.bed.localeCompare(b.bed,undefined,{numeric:true});}).forEach(function(p){var d=p.details&&p.details.fall||{};var isR=!!(p.discharge||d.caseDate);var stay='—';if(mP.length===2&&p.admit_a1){var mS=new Date(parseInt(mP[0]),parseInt(mP[1])-1,1);var aD=new Date((p.admit_a1||'').replace(/\//g,'-'));var isDischarged=!!p.discharge;var eStr=isDischarged?p.discharge:(d.caseDate||'');var eD,inclusive;if(eStr){eD=new Date(eStr.replace(/\//g,'-'));inclusive=!isDischarged;}else{var mLast=new Date(parseInt(mP[0]),parseInt(mP[1]),0);var today=new Date();today.setHours(0,0,0,0);eD=today<mLast?today:mLast;inclusive=true;}var sD=aD>mS?aD:mS;if(eD>=sD){var dayCount=Math.round((eD-sD)/86400000)+(inclusive?1:0);if(dayCount>0){stay=dayCount+'天';fallStayTotal+=dayCount;}}}fH+='<tr class="'+(isR?'dis':'')+'"><td>'+esc(p.bed)+'</td><td>'+esc(p.pid)+'</td><td>'+esc(p.name)+'</td><td>'+esc(p.admit)+'</td><td>'+esc(p.admit_a1)+'</td><td>'+esc(p.discharge||'')+'</td><td>'+esc(d.caseDate||'')+'</td><td>'+stay+'</td><td style="text-align:left">'+esc(d.note||'')+'</td></tr>';});fH+='</table>';
+  fH+='<div style="text-align:right;font-size:12px;margin-top:6px;">當月住院天數總和：'+fallStayTotal+'天</div>';
   var dH='<div class="doc-header"><div class="doc-title">A1病房'+label+'DNR病患名單</div></div><table><tr><th>床號</th><th>病例號</th><th>姓名</th><th>入院</th><th>入A1</th><th>出院</th><th>本院簽立</th><th>預立安寧</th><th>全拒</th><th>院宣</th><th>藥物</th><th>壓胸</th><th>電擊</th><th>插管</th></tr>';
   patients.filter(function(p){return p.dnr;}).forEach(function(p){var d=p.details&&p.details.dnr||{};var palliDisp=d.palliDate||(d.palliNoDate?'✓（無日期）':'');dH+='<tr class="'+(p.discharge?'dis':'')+'"><td>'+esc(p.bed)+'</td><td>'+esc(p.pid)+'</td><td>'+esc(p.name)+'</td><td>'+esc(p.admit)+'</td><td>'+esc(p.admit_a1)+'</td><td>'+esc(p.discharge||'')+'</td><td>'+esc(d.signDate||'')+'</td><td>'+esc(palliDisp)+'</td><td>'+chk(d.fullRefuse)+'</td><td>'+chk(d.hospDecl)+'</td><td>'+chk(d.noMed)+'</td><td>'+chk(d.noCPR)+'</td><td>'+chk(d.noDefib)+'</td><td>'+chk(d.noIntub)+'</td></tr>';});dH+='</table>';
   var iH='<div class="doc-header"><div class="doc-title">A1病房'+label+'接觸隔離病患紀錄</div></div><table><tr><th>床號</th><th>病例號</th><th>姓名</th><th>入院</th><th>入A1</th><th>看護</th><th>出院</th><th>#</th><th>隔離日期</th><th>檢體</th><th>菌種</th><th>解/轉</th><th>解/轉日期</th></tr>';
