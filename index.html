@@ -925,6 +925,7 @@ authReady.then(()=>pullAll()).then(()=>{
         <div id="nurseListTitle" style="font-size:18px;font-weight:700;"></div>
         <div style="font-size:12px;opacity:.8;margin-top:2px;">點擊「＋」複製整列 | 已結束列自動變灰</div>
       </div>
+      <button onclick="checkNurseList()" title="核對看護一覽表與A組清單" style="background:#fff;border:none;color:#15803d;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;">🔍 核對</button>
       <button onclick="closeNurseList()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;">✕</button>
     </div>
     <div style="overflow-x:auto;max-height:65vh;">
@@ -978,7 +979,7 @@ authReady.then(()=>pullAll()).then(()=>{
   <div style="background:#fff;border-radius:12px;padding:28px;width:460px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,.2);">
     <div id="confirmMsg" style="font-size:15px;font-weight:600;margin-bottom:20px;line-height:1.6;"></div>
     <div style="display:flex;gap:10px;justify-content:flex-end;">
-      <button onclick="confirmResolve(false)" style="padding:10px 20px;border:1px solid var(--border);border-radius:8px;background:#fff;font-size:14px;cursor:pointer;">取消</button>
+      <button id="confirmCancelBtn" onclick="confirmResolve(false)" style="padding:10px 20px;border:1px solid var(--border);border-radius:8px;background:#fff;font-size:14px;cursor:pointer;">取消</button>
       <button id="confirmOkBtn" onclick="confirmResolve(true)" style="padding:10px 20px;border:none;border-radius:8px;background:#1d4ed8;color:#fff;font-size:14px;font-weight:600;cursor:pointer;">確定</button>
     </div>
   </div>
@@ -1052,10 +1053,8 @@ function openNurseList(){
     var pid=String(p.id).trim();
     var existing=nurseListData.filter(function(r){return String(r.patientId).trim()===pid;});
     if(p.nurse==='家屬'||!p.nurse){
-      // 家屬或空白：不列入看護一覽表，若之前已有殘留紀錄一併移除
-      if(existing.length){
-        nurseListData=nurseListData.filter(function(r){return String(r.patientId).trim()!==pid;});
-      }
+      // 家屬或空白：不新增列；既有紀錄（含歷史看護）一律保留，只同步床號/病歷號/姓名/入院時間
+      existing.forEach(function(r){r.bed=p.bed; r.pid=p.pid; r.name=p.name; r.admit=p.admit;});
       return;
     }
     if(!existing.length){
@@ -1107,6 +1106,29 @@ function makeNurseRow(p,copyFrom){
   };
 }
 
+function checkNurseList(){
+  var norm=function(x){return String(x==null?'':x).trim();};
+  var rows=getNurseListData().filter(function(r){return !(r.endDate&&norm(r.endDate));});
+  var byPid={};
+  patients.forEach(function(p){var k=norm(p.pid);if(k)(byPid[k]=byPid[k]||[]).push(p);});
+  var dcList=[],noMatch=[];
+  rows.forEach(function(r){
+    var label=(r.bed||'—')+' '+(r.name||'')+'（'+(norm(r.pid)||'無病歷號')+'）看護：'+(r.nurseName||'—');
+    var ms=norm(r.pid)?byPid[norm(r.pid)]:null;
+    if(!ms||!ms.length){noMatch.push(label);return;}
+    // 同病歷號有任一位未出院就視為仍在院
+    var inHouse=ms.some(function(p){return !norm(p.discharge);});
+    if(!inHouse)dcList.push(label);
+  });
+  var msg='';
+  if(dcList.length)msg+='【病人已出院，看護列尚未填結束日期】\n'+dcList.join('\n')+'\n\n';
+  if(noMatch.length)msg+='【病歷號在A組清單找不到】\n'+noMatch.join('\n')+'\n\n';
+  if(!msg)msg='✓ 核對無誤：所有進行中的看護列，病歷號都對得上A組清單的未出院病人。';
+  else msg=msg.replace(/\n+$/,'');
+  var el=document.getElementById('alertMsg');
+  if(el)el.style.whiteSpace='pre-line';
+  showAlert(msg);
+}
 function closeNurseList(){
   document.getElementById('nurseListOverlay').style.display='none';
 }
@@ -1170,7 +1192,10 @@ function updateNurseRow(rowId,field,val){
   r[field]=val;
   // If endDate was just set, re-sort (re-render)
   saveNurseListData();
-  if(field==='endDate') renderNurseList();
+  if(field==='endDate'){
+    renderNurseList();
+    if(val&&String(val).trim()) showAlert('該病人A組表單記得也要確認');
+  }
 }
 
 function deleteNurseRow(rowId){
@@ -1185,7 +1210,7 @@ function deleteNurseRow(rowId){
 function duplicateNurseRow(rowId){
   var r=nurseListData.find(function(x){return x.id===rowId;});
   if(!r)return;
-  var p=patients.find(function(x){return x.id===r.patientId;});
+  var p=patients.find(function(x){return String(x.id).trim()===String(r.patientId).trim();});
   var newRow=makeNurseRow(p||null,r);
   newRow.patientId=r.patientId;
   newRow.bed=r.bed;newRow.pid=r.pid;newRow.name=r.name;newRow.admit=r.admit;
@@ -1572,6 +1597,7 @@ function showModule(mod){
   if(mod==='stats'){
     document.getElementById('stats-home').style.display='block';
     document.getElementById('stats-detail').style.display='none';
+    renderReportStatusLabels();
   }
   if(mod==='admin'){
     // 進入管理頁時全部收合
@@ -2966,6 +2992,39 @@ function saveCellPopup(){
     var newExtra=getNurseExtraSelections();
     var oldNurse=_oldNurse;
     var newNurse=(popupSelectedChip!==null?popupSelectedChip:((document.getElementById('popupInput')||{}).value||'')).trim();
+    // 看護改成家屬／空白：先確認，不直接刪除一覽表資料
+    if((newNurse==='家屬'||newNurse==='')&&oldNurse!==newNurse){
+      var _lbl=newNurse||'空白';
+      var _pidStr=String(p.id).trim();
+      var _rowsOf=function(){return getNurseListData().filter(function(r){return String(r.patientId).trim()===_pidStr;});};
+      closeCellPopup();
+      showYesNo(newNurse?'看護換成家屬嗎？':'確定要清除看護嗎？',function(ok){
+        if(ok){
+          var today=_todayLocalStr();
+          nurseListData=getNurseListData();
+          nurseListData.forEach(function(r){
+            if(String(r.patientId).trim()===_pidStr&&!(r.endDate&&String(r.endDate).trim()))r.endDate=today;
+          });
+          saveNurseListData();
+          p.nurseExtra=newExtra;p.nurseExtraName='';
+          savePatients();renderA();
+        } else {
+          showYesNo(newNurse?'本來就是家屬？':'本來就沒有看護？',function(ok2){
+            if(ok2){
+              nurseListData=getNurseListData().filter(function(r){return String(r.patientId).trim()!==_pidStr;});
+              saveNurseListData();
+              p.nurseExtra=newExtra;p.nurseExtraName='';
+              savePatients();renderA();
+            } else {
+              // 視為誤點：還原看護欄，不做任何調整
+              p.nurse=oldNurse;
+              savePatients();renderA();
+            }
+          });
+        }
+      });
+      return;
+    }
     // 外傭必填名字
     var foreignerName='';
     if(newNurse==='外傭'){
@@ -2982,23 +3041,46 @@ function saveCellPopup(){
       // 一覽表中nurseName：外傭顯示外傭姓名，其他顯示newNurse
       var nurseListDisplayName=foreignerName||newNurse;
       nurseListData=getNurseListData();
-      var existingRows=nurseListData.filter(function(r){return r.patientId===p.id;});
+      var existingRows=nurseListData.filter(function(r){return String(r.patientId).trim()===String(p.id).trim();});
       var activeRow=existingRows.find(function(r){return !r.endDate;});
       var targetRow=activeRow||(existingRows.length?existingRows[existingRows.length-1]:null);
       if(isChange&&targetRow){
         savePatients();closeCellPopup();renderA();
         showConfirm('是否更換看護？（'+oldNurse+' → '+newNurse+'）', function(ok){
           if(ok){
-            var today=new Date().toISOString().slice(0,10);
-            if(!targetRow.endDate)targetRow.endDate=today;
-            var newRow=makeNurseRow(p,targetRow);
-            newRow.nurseName=nurseListDisplayName;
-            newRow.careMode=newExtra.careMode||targetRow.careMode;
-            newRow.careShift=newExtra.careShift||targetRow.careShift;
-            newRow.affiliation=newExtra.affiliation||targetRow.affiliation;
-            newRow.startDate=today; newRow.endDate='';
-            var idx2=nurseListData.findIndex(function(x){return x.id===targetRow.id;});
-            nurseListData.splice(idx2+1,0,newRow);
+            var today=_todayLocalStr();
+            var _idT=String(p.id).trim(), _pidT=String(p.pid||'').trim();
+            // 同一病歷號、尚未填結束日期的看護列
+            var activeRows=nurseListData.filter(function(r){
+              if(r.endDate&&String(r.endDate).trim())return false;
+              return String(r.patientId).trim()===_idT||(_pidT&&String(r.pid||'').trim()===_pidT);
+            });
+            var doReplace=function(rowsToEnd){
+              var base=rowsToEnd[0];
+              rowsToEnd.forEach(function(r){if(!r.endDate)r.endDate=today;});
+              var newRow=makeNurseRow(p,base);
+              newRow.nurseName=nurseListDisplayName;
+              newRow.careMode=newExtra.careMode||base.careMode;
+              newRow.careShift=newExtra.careShift||base.careShift;
+              newRow.affiliation=newExtra.affiliation||base.affiliation;
+              newRow.startDate=today; newRow.endDate='';
+              var idx2=nurseListData.findIndex(function(x){return x.id===base.id;});
+              nurseListData.splice(idx2+1,0,newRow);
+            };
+            if(activeRows.length>=2){
+              showYesNo('這個病人有兩位看護，是否都要修改?',function(all){
+                if(all){
+                  doReplace(activeRows);
+                  saveNurseListData();
+                  showAlert('記得增加第二位看護的資料');
+                } else {
+                  // 只改 A 組看護欄（已儲存），一覽表不動
+                  showAlert('記得要改看護一覽表的看護');
+                }
+              });
+              return;
+            }
+            doReplace([activeRows.length?activeRows[0]:targetRow]);
           } else {
             targetRow.nurseName=nurseListDisplayName;
             targetRow.careMode=newExtra.careMode||targetRow.careMode;
@@ -3021,10 +3103,7 @@ function saveCellPopup(){
       }
       saveNurseListData();
     } else {
-      // 家屬或空白：移除其在一覽表中的記錄
-      nurseListData=getNurseListData();
-      nurseListData=nurseListData.filter(function(r){return r.patientId!==p.id;});
-      saveNurseListData();
+      // 家屬或空白且沒有變動：不動一覽表
     }
   }
   savePatients();closeCellPopup();renderA();
@@ -3309,6 +3388,16 @@ function setReportCheck(key,val){
   obj[key]=val;
   lsSet(KEY_REPORT_CHECK,JSON.stringify(obj));
   renderReportCheckLights();
+  renderReportStatusLabels();
+}
+function renderReportStatusLabels(){
+  var c=getReportCheck();
+  ['wound','rest','nodc'].forEach(function(k){
+    var el=document.getElementById('rptStatus_'+k);if(!el)return;
+    var on=!!c[k];
+    el.textContent=on?'✓ 已完成':'未完成';
+    el.style.color=on?'#16a34a':'#9ca3af';
+  });
 }
 function renderReportCheckLights(){
   var el=document.getElementById('reportCheckLights');
@@ -3640,9 +3729,18 @@ function showConfirm(msg, cbOrLabel, cbOrUndef, okLabelOrUndef){
   document.getElementById('confirmOverlay').style.display='flex';
   _confirmCallback=cb;
 }
+function showYesNo(msg,cb){
+  showConfirm(msg,cb,'是');
+  var cnBtn=document.getElementById('confirmCancelBtn'); if(cnBtn)cnBtn.textContent='否';
+}
+function _todayLocalStr(){
+  var d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
 function confirmResolve(ok){
   document.getElementById('confirmOverlay').style.display='none';
   var okBtn=document.getElementById('confirmOkBtn'); if(okBtn)okBtn.textContent='確定';
+  var cnBtn=document.getElementById('confirmCancelBtn'); if(cnBtn)cnBtn.textContent='取消';
   var cb=_confirmCallback;
   _confirmCallback=null; // 先清空，若callback內又呼叫showConfirm（巢狀彈窗）設定新callback，才不會被這裡誤刪
   if(cb)cb(ok);
@@ -5175,6 +5273,7 @@ function exportPDF_B(){
    報表形成專區
 ══════════════════════════════════════════ */
 function showStatsDetail(tab){
+  renderReportStatusLabels();
   currentStatsTab=tab;
   document.getElementById('stats-home').style.display='none';
   document.getElementById('stats-detail').style.display='block';
@@ -5186,6 +5285,7 @@ function showStatsDetail(tab){
   else document.getElementById('stats-content').innerHTML='<div style="padding:40px;text-align:center;color:var(--text-muted);"><div style="font-size:40px;margin-bottom:12px;">🚧</div><div style="font-size:16px;font-weight:700;">待建立</div></div>';
 }
 function backToStatsHome(){
+  renderReportStatusLabels();
   document.getElementById('stats-home').style.display='block';
   document.getElementById('stats-detail').style.display='none';
   document.getElementById('stats-content').innerHTML='';
@@ -5400,7 +5500,7 @@ function renderRestraintReport(){
     h+='<td>'+esc(pat.name)+'</td>';
     h+='<td>'+(isMale?'1':'')+'</td><td>'+(isFemale?'1':'')+'</td>';
     h+='<td>'+(ageGroup==='≤50'?'1':'')+'</td><td>'+(ageGroup==='51-64'?'1':'')+'</td><td>'+(ageGroup==='≥65'?'1':'')+'</td>';
-    h+='<td>'+esc(pat.dx||'')+'</td>';
+    h+='<td>'+esc(getFormalDx(pat.dx||''))+'</td>';
     h+='<td>'+methodCode+'</td>';
     h+='<td style="background:#fef9c3;">'+(isNewThisMonth?'是':'否')+'</td>';
     h+='<td>'+pidCount+'</td>';
@@ -5703,7 +5803,7 @@ function exportRestraintExcel(){
         idx+1,pat.bed,maskPid(pat.pid),pat.name,
         isMale?1:'',isFemale?1:'',
         ageGroup==='≤50'?1:'',ageGroup==='51-64'?1:'',ageGroup==='≥65'?1:'',
-        pat.dx||'',methodCode,isNewThisMonth?'是':'否',r.pidCount,
+        getFormalDx(pat.dx||''),methodCode,isNewThisMonth?'是':'否',r.pidCount,
         durCol==='≤4'?1:'',durCol==='≤8'?1:'',durCol==='≤24'?1:'',durCol==='>24'?1:'',
         startDisp,endDisp,hours,endReason,
         shift==='白班'?'✓':'',shift==='小夜'?'✓':'',shift==='大夜'?'✓':'',
@@ -6422,17 +6522,17 @@ function exportNodcPDF(downloadHtml){
         <div onclick="showStatsDetail('wound')" style="background:#fff;border:2px solid var(--border);border-radius:14px;padding:28px 16px;text-align:center;cursor:pointer;transition:box-shadow .2s,border-color .2s;" onmouseover="this.style.boxShadow='0 6px 20px rgba(14,116,144,.2)';this.style.borderColor='#0e7490'" onmouseout="this.style.boxShadow='';this.style.borderColor='var(--border)'">
           <div style="font-size:36px;margin-bottom:10px;">🩹</div>
           <div style="font-size:15px;font-weight:700;color:#0e7490;">壓瘡統計表</div>
-          <div style="font-size:11px;color:#16a34a;margin-top:4px;">✓ 已完成</div>
+          <div id="rptStatus_wound" style="font-size:11px;color:#16a34a;margin-top:4px;">✓ 已完成</div>
         </div>
         <div onclick="showStatsDetail('restraint')" style="background:#fff;border:2px solid var(--border);border-radius:14px;padding:28px 16px;text-align:center;cursor:pointer;transition:box-shadow .2s,border-color .2s;" onmouseover="this.style.boxShadow='0 6px 20px rgba(14,116,144,.2)';this.style.borderColor='#0e7490'" onmouseout="this.style.boxShadow='';this.style.borderColor='var(--border)'">
           <div style="font-size:36px;margin-bottom:10px;">🔗</div>
           <div style="font-size:15px;font-weight:700;color:#0e7490;">約束一覽表</div>
-          <div style="font-size:11px;color:#16a34a;margin-top:4px;">✓ 已完成</div>
+          <div id="rptStatus_rest" style="font-size:11px;color:#16a34a;margin-top:4px;">✓ 已完成</div>
         </div>
         <div onclick="showStatsDetail('nodc')" style="background:#fff;border:2px solid var(--border);border-radius:14px;padding:28px 16px;text-align:center;cursor:pointer;transition:box-shadow .2s,border-color .2s;" onmouseover="this.style.boxShadow='0 6px 20px rgba(14,116,144,.2)';this.style.borderColor='#0e7490'" onmouseout="this.style.boxShadow='';this.style.borderColor='var(--border)'">
           <div style="font-size:36px;margin-bottom:10px;">📋</div>
           <div style="font-size:15px;font-weight:700;color:#0e7490;">非今辦明出表</div>
-          <div style="font-size:11px;color:#16a34a;margin-top:4px;">✓ 已完成</div>
+          <div id="rptStatus_nodc" style="font-size:11px;color:#16a34a;margin-top:4px;">✓ 已完成</div>
         </div>
         <div onclick="window.open('https://my-fast-mbd-app.vercel.app/','_blank')" style="background:#fff;border:2px solid var(--border);border-radius:14px;padding:28px 16px;text-align:center;cursor:pointer;transition:box-shadow .2s,border-color .2s;" onmouseover="this.style.boxShadow='0 6px 20px rgba(14,116,144,.2)';this.style.borderColor='#0e7490'" onmouseout="this.style.boxShadow='';this.style.borderColor='var(--border)'">
           <div style="font-size:36px;margin-bottom:10px;">🔍</div>
