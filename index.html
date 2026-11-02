@@ -1240,17 +1240,22 @@ let patients=[], detailPatientId=null, detailField=null, popupPatientId=null, po
 
 /* ── STORAGE ── */
 function getAdminPass(){return ls(KEY_ADMIN_PASS)||'ward@A1admin';}
-function ls(k){return localStorage.getItem(k);}
+function ls(k){
+  // 備份檢視模式：優先讀記憶體暫存（備份內容＋暫時修改），不碰真正的 localStorage
+  if(typeof _backupModeActive!=='undefined'&&_backupModeActive&&typeof _backupMem!=='undefined'&&_backupMem&&Object.prototype.hasOwnProperty.call(_backupMem,k))return _backupMem[k];
+  return localStorage.getItem(k);
+}
 function lsSet(k,v){
   if(typeof _backupModeActive!=='undefined'&&_backupModeActive){
-    console.warn('備份檢視模式中，已阻擋寫入：'+k);
+    // 備份檢視模式：只寫記憶體暫存，不寫 localStorage、不同步 Firebase，離開檢視即消失
+    if(typeof _backupMem!=='undefined'&&_backupMem)_backupMem[k]=String(v);
     return;
   }
   localStorage.setItem(k,v);if(window._fbSet)window._fbSet(k,v);
 }
 function lsRemove(k){
   if(typeof _backupModeActive!=='undefined'&&_backupModeActive){
-    console.warn('備份檢視模式中，已阻擋刪除：'+k);
+    if(typeof _backupMem!=='undefined'&&_backupMem)_backupMem[k]=null;
     return;
   }
   localStorage.removeItem(k);if(window._fbRemove)window._fbRemove(k);
@@ -3271,6 +3276,7 @@ function clearBLog(){
 /* ── 還原區：備份檢視模式（唯讀，不影響現行資料）── */
 var _loadedBackup=null;
 var _backupModeActive=false;
+var _backupMem=null; // 備份檢視中的記憶體暫存（key→字串；null 代表已刪除）
 var _liveBackupState=null;
 function handleBackupFileSelect(ev){
   var file=ev.target.files&&ev.target.files[0];
@@ -3317,33 +3323,30 @@ function enterBackupView(){
     restRaw:ls(restKey),
     restKey:restKey
   };
-  // 換成備份資料（只換記憶體變數 + 直接寫入localStorage，完全不透過lsSet，不會同步到Firebase）
+  // 換成備份資料：全部放在記憶體暫存，完全不寫入 localStorage、不同步 Firebase
   patients=JSON.parse(JSON.stringify(b.patients));
   nurseListData=JSON.parse(JSON.stringify(b.nurseListData||[]));
-  try{
-    if(b.month)localStorage.setItem(KEY_MONTH,b.month);
-    localStorage.setItem(KEY_NODC_DATA,JSON.stringify(b.nodcData||{}));
-    localStorage.setItem(restKey,JSON.stringify(b.restReport||{}));
-  }catch(e){}
+  _backupMem={};
+  _backupMem[KEY_PATIENTS]=JSON.stringify(patients);
+  _backupMem[KEY_NURSE_LIST_DATA]=JSON.stringify(nurseListData);
+  if(b.month)_backupMem[KEY_MONTH]=b.month;
+  _backupMem[KEY_NODC_DATA]=JSON.stringify(b.nodcData||{});
+  _backupMem[restKey]=JSON.stringify(b.restReport||{});
   _backupModeActive=true;
   var banner=document.getElementById('backupModeBanner');
   if(banner){banner.style.display='flex';document.body.style.paddingTop='38px';}
-  document.getElementById('backupModeBannerText').textContent='📂 目前正在檢視備份資料（'+(b.timestamp||'')+'），不會影響現在使用中的資料';
+  document.getElementById('backupModeBannerText').textContent='📂 目前正在檢視備份資料（'+(b.timestamp||'')+'），可暫時修改，離開後不會保留，也不會影響現在使用中的資料';
   updateMonthDisplay();
   showModule('stats'); // 直接帶去報表形成專區，方便重新調閱/匯出
-  showAlert('✅ 已進入備份檢視模式，看完記得按左上角「離開備份檢視」');
+  showAlert('✅ 已進入備份檢視模式。可以暫時修改內容（例如重新匯出報表前微調），但修改只存在畫面中，離開備份檢視後即消失。');
 }
 function exitBackupView(){
   if(!_backupModeActive||!_liveBackupState)return;
-  var s=_liveBackupState;
-  patients=s.patients;
-  nurseListData=s.nurseListData;
-  try{
-    if(s.monthRaw===null)localStorage.removeItem(KEY_MONTH);else localStorage.setItem(KEY_MONTH,s.monthRaw);
-    if(s.nodcRaw===null)localStorage.removeItem(KEY_NODC_DATA);else localStorage.setItem(KEY_NODC_DATA,s.nodcRaw);
-    if(s.restRaw===null)localStorage.removeItem(s.restKey);else localStorage.setItem(s.restKey,s.restRaw);
-  }catch(e){}
+  // 丟棄記憶體暫存，從真正的資料重新載入
   _backupModeActive=false;
+  _backupMem=null;
+  try{patients=JSON.parse(ls(KEY_PATIENTS)||'[]');}catch(e){patients=_liveBackupState.patients;}
+  nurseListData=getNurseListData();
   _liveBackupState=null;
   var banner=document.getElementById('backupModeBanner');
   if(banner){banner.style.display='none';document.body.style.paddingTop='';}
@@ -5400,7 +5403,7 @@ function renderRestraintReport(){
 
   // 住院人日 - 從 localStorage 取或手動輸入
   var storageKey='ward_rest_report_'+ym;
-  var savedData={};try{savedData=JSON.parse(localStorage.getItem(storageKey)||'{}');}catch(e){}
+  var savedData={};try{savedData=JSON.parse(ls(storageKey)||'{}');}catch(e){}
   var admDays=savedData.admDays||0;
   var prevalence=admDays>0?(rows.length/admDays*100).toFixed(2):'—';
   var newCount=rows.filter(function(r){
@@ -5557,7 +5560,7 @@ function saveRestAdmDays(){
   var ym=getReportMonth();
   var storageKey='ward_rest_report_'+ym;
   var val=parseInt(document.getElementById('restAdmDays').value)||0;
-  var saved={};try{saved=JSON.parse(localStorage.getItem(storageKey)||'{}');}catch(e){}
+  var saved={};try{saved=JSON.parse(ls(storageKey)||'{}');}catch(e){}
   saved.admDays=val;
   lsSet(storageKey,JSON.stringify(saved));
   renderRestraintReport();
@@ -5721,7 +5724,7 @@ function exportRestraintExcel(){
   var rocYear=p2.y-1911;
   var monthLabel=rocYear+'年'+p2.m+'月';
   var storageKey='ward_rest_report_'+ym;
-  var savedData={};try{savedData=JSON.parse(localStorage.getItem(storageKey)||'{}');}catch(e){}
+  var savedData={};try{savedData=JSON.parse(ls(storageKey)||'{}');}catch(e){}
   var admDays=savedData.admDays||0;
   var rows=[];
   patients.forEach(function(pat){
